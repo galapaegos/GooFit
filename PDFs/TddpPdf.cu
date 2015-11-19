@@ -149,6 +149,7 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, fptype* p, unsigned int* indices) {
 
   for (int i = 0; i < numResonances; ++i) {
     int paramIndex  = parIndexFromResIndex(i);
+
     fptype amp_real = RO_CACHE(p[RO_CACHE(indices[paramIndex+0])]);
     fptype amp_imag = RO_CACHE(p[RO_CACHE(indices[paramIndex+1])]);
 
@@ -532,7 +533,11 @@ __host__ void TddpPdf::setDataSize (unsigned int dataSize, unsigned int evtSize)
   numEntries = dataSize; 
   for (int i = 0; i < 16; i++)
   {
+#ifdef TARGET_MPI
+    cachedWaves[i] = new thrust::device_vector<WaveHolder_s>(m_iEventsPerTask);
+#else
     cachedWaves[i] = new thrust::device_vector<WaveHolder_s>(dataSize);
+#endif
     void* dummy = thrust::raw_pointer_cast(cachedWaves[i]->data()); 
     MEMCPY_TO_SYMBOL(cWaves, &dummy, sizeof(WaveHolder_s*), i*sizeof(WaveHolder_s*), cudaMemcpyHostToDevice); 
   }
@@ -586,11 +591,21 @@ __host__ fptype TddpPdf::normalise () const {
 
   for (int i = 0; i < decayInfo->resonances.size(); ++i) {
     if (redoIntegral[i]) {
+#ifdef TARGET_MPI
+      thrust::transform (thrust::make_zip_iterator(thrust::make_tuple(eventIndex, dataArray, eventSize)),
+		thrust::make_zip_iterator(thrust::make_tuple(eventIndex + m_iEventsPerTask, arrayAddress, eventSize)),
+		strided_range<thrust::device_vector<WaveHolder>::iterator>(
+			cachedWaves->begin() + i, 
+			cachedWaves->end(), 
+			decayInfo->resonances.size()).begin(), 
+		*(calculators[i]));
       
+#else
       thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, dataArray, eventSize)),
 			thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, eventSize)),
 			strided_range<thrust::device_vector<WaveHolder_s>::iterator>(cachedWaves[i]->begin(), cachedWaves[i]->end(), 1).begin(), 
 			*(calculators[i]));
+#endif
       //std::cout << "Integral for resonance " << i << " " << numEntries << " " << totalEventSize << std::endl; 
     }
     
@@ -603,18 +618,18 @@ __host__ fptype TddpPdf::normalise () const {
 						      thrust::make_zip_iterator(thrust::make_tuple(binIndex + totalBins, arrayAddress)),
 						      *(integrators[i][j]), 
 						      dummy, 
-						      complexSum); 
+						      complexSum);
       /*
       std::cout << "With resonance " << j << ": " 
-		<< thrust::get<0>(*(integrals[i][j])) << " " 
-		<< thrust::get<1>(*(integrals[i][j])) << " " 
-		<< thrust::get<2>(*(integrals[i][j])) << " " 
-		<< thrust::get<3>(*(integrals[i][j])) << " " 
-		<< thrust::get<4>(*(integrals[i][j])) << " " 
-		<< thrust::get<5>(*(integrals[i][j])) << std::endl; 
+               << thrust::get<0>(*(integrals[i][j])) << " " 
+               << thrust::get<1>(*(integrals[i][j])) << " " 
+               << thrust::get<2>(*(integrals[i][j])) << " " 
+               << thrust::get<3>(*(integrals[i][j])) << " " 
+               << thrust::get<4>(*(integrals[i][j])) << " "
+               << thrust::get<5>(*(integrals[i][j])) << std::endl; 
       */
-    }
-  }      
+   }
+  }
 
   // End of time-consuming integrals. 
 
