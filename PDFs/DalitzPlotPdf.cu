@@ -85,7 +85,7 @@ EXEC_TARGET fptype device_DalitzPlot (fptype* evt, fptype* p, unsigned int* indi
     matrixelement.multiply(amp_real, amp_imag); 
     totalAmp += matrixelement; 
   } 
-   
+
   fptype ret = norm2(totalAmp); 
   int effFunctionIdx = parIndexFromResIndex_DP(numResonances); 
   fptype eff = callFunction(evt, RO_CACHE(indices[effFunctionIdx]), RO_CACHE(indices[effFunctionIdx + 1])); 
@@ -196,9 +196,13 @@ __host__ void DalitzPlotPdf::setDataSize (unsigned int dataSize, unsigned int ev
   
   for (int i = 0; i < 16; i++)
   {
-    cachedWaves[i] = new DEVICE_VECTOR<devcomplex<fptype> >(dataSize);
+#ifdef TARGET_MPI
+    cachedWaves[i] = new DEVICE_VECTOR<devcomplex<fptype> >(m_iEventsPerTask*decayInfo->resonances.size());
+#else
+    cachedWaves[i] = new DEVICE_VECTOR<devcomplex<fptype> >(numEntries*decayInfo->resonances.size());
+#endif
     void* dummy = thrust::raw_pointer_cast(cachedWaves[i]->data()); 
-    MEMCPY_TO_SYMBOL(cResonances, &dummy, sizeof(devcomplex<fptype>*), i*sizeof(devcomplex<fptype>*), cudaMemcpyHostToDevice); 
+    MEMCPY_TO_SYMBOL(cResonances[i], &dummy, sizeof(devcomplex<fptype>*), cacheToUse*sizeof(devcomplex<fptype>*), cudaMemcpyHostToDevice); 
   }
   setForceIntegrals(); 
 }
@@ -245,27 +249,49 @@ __host__ fptype DalitzPlotPdf::normalise () const {
   thrust::counting_iterator<int> eventIndex(0); 
 
   for (int i = 0; i < decayInfo->resonances.size(); ++i) {
+<<<<<<< HEAD
     if (redoIntegral[i]) {
       thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, dataArray, eventSize)),
 			thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, eventSize)),
 			strided_range<DEVICE_VECTOR<devcomplex<fptype> >::iterator>(cachedWaves[i]->begin(), 
 										    cachedWaves[i]->end(), 
 										    1).begin(), 
+=======
+    if (redoIntegral[i])
+    {
+#ifdef TARGET_MPI
+        thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, dataArray, eventSize)),
+  			thrust::make_zip_iterator(thrust::make_tuple(eventIndex + m_iEventsPerTask, arrayAddress, eventSize)),
+			strided_range<DEVICE_VECTOR<devcomplex<fptype> >::iterator>(
+				cachedWaves->begin() + i, 
+				cachedWaves->end(), 
+				decayInfo->resonances.size()).begin(), 
 			*(calculators[i]));
+#else
+        thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, dataArray, eventSize)),
+  			thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, eventSize)),
+			strided_range<DEVICE_VECTOR<devcomplex<fptype> >::iterator>(
+				cachedWaves->begin() + i, 
+				cachedWaves->end(), 
+				decayInfo->resonances.size()).begin(), 
+>>>>>>> Changes to include MPI support.  This allows for the problem to be subdivided across multiple GPU's, or you can load up one GPU with more work.
+			*(calculators[i]));
+#endif
     }
-    
+ 
     // Possibly this can be done more efficiently by exploiting symmetry? 
     for (int j = 0; j < decayInfo->resonances.size(); ++j) {
       if ((!redoIntegral[i]) && (!redoIntegral[j])) continue; 
       devcomplex<fptype> dummy(0, 0);
       thrust::plus<devcomplex<fptype> > complexSum; 
+
       (*(integrals[i][j])) = thrust::transform_reduce(thrust::make_zip_iterator(thrust::make_tuple(binIndex, arrayAddress)),
 						      thrust::make_zip_iterator(thrust::make_tuple(binIndex + totalBins, arrayAddress)),
 						      *(integrators[i][j]), 
 						      dummy, 
-						      complexSum); 
+						      complexSum);
     }
-  }      
+  } 
 
   // End of time-consuming integrals. 
   complex<fptype> sumIntegral(0, 0);

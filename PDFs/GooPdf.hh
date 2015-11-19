@@ -1,6 +1,9 @@
 #ifndef THRUST_PDF_FUNCTOR_HH
 #define THRUST_PDF_FUNCTOR_HH
 #include "ThrustOverride.h"
+#ifdef TARGET_MPI
+#include <mpi.h>
+#endif
 #include <stdlib.h>
 #include <math.h>
 #include <thrust/device_vector.h>
