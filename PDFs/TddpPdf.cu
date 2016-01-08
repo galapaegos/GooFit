@@ -17,25 +17,6 @@ const unsigned int SPECIAL_RESOLUTION_FLAG = 999999999;
 //NOTE: only one set of wave holders is supported currently.
 MEM_DEVICE WaveHolder_s* cWaves[16]; 
 
-/*
-EXEC_TARGET bool inDalitz (const fptype &m12, const fptype &m13, const fptype &bigM, const fptype &dm1, const fptype &dm2, const fptype &dm3) {
-  if (m12 < POW(dm1 + dm2, 2)) return false; // This m12 cannot exist, it's less than the square of the (1,2) particle mass.
-  if (m12 > POW(bigM - dm3, 2)) return false;   // This doesn't work either, there's no room for an at-rest 3 daughter. 
-  
-  // Calculate energies of 1 and 3 particles in m12 rest frame. 
-  fptype e1star = 0.5 * (m12 - dm2*dm2 + dm1*dm1) / SQRT(m12); 
-  fptype e3star = 0.5 * (bigM*bigM - m12 - dm3*dm3) / SQRT(m12); 
-
-  // Bounds for m13 at this value of m12.
-  fptype minimum = POW(e1star + e3star, 2) - POW(SQRT(e1star*e1star - dm1*dm1) + SQRT(e3star*e3star - dm3*dm3), 2);
-  if (m13 < minimum) return false;
-  fptype maximum = POW(e1star + e3star, 2) - POW(SQRT(e1star*e1star - dm1*dm1) - SQRT(e3star*e3star - dm3*dm3), 2);
-  if (m13 > maximum) return false;
-
-  return true; 
-}
-*/
-
 EXEC_TARGET bool inDalitz (const fptype &m12, const fptype &m13, const fptype &bigM, const fptype &dm1, const fptype &dm2, const fptype &dm3) {
   fptype dm1pdm2 = dm1 + dm2;
   fptype bigMmdm3 = bigM - dm3;
@@ -167,21 +148,21 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, fptype* p, unsigned int* indices) {
 
 #ifdef DEBUGSUMRATES
     if (25 > evtNum) {
-      devcomplex<fptype> waveA_i(thrust::get<0>(cWaves[cacheToUse][evtNum*numResonances + i]),
-				 thrust::get<1>(cWaves[cacheToUse][evtNum*numResonances + i])); 
-      devcomplex<fptype> waveB_i(thrust::get<2>(cWaves[cacheToUse][evtNum*numResonances + i]),
-				 thrust::get<3>(cWaves[cacheToUse][evtNum*numResonances + i])); 
+      devcomplex<fptype> waveA_i(thrust::get<0>(cWaves[cacheToUse][evtRes + i]),
+				 thrust::get<1>(cWaves[cacheToUse][evtRes + i])); 
+      devcomplex<fptype> waveB_i(thrust::get<2>(cWaves[cacheToUse][evtRes + i]),
+				 thrust::get<3>(cWaves[cacheToUse][evtRes + i])); 
 
       for (int j = 0; j < numResonances; ++j) {
 	int paramIndex_j  = parIndexFromResIndex(j);
 	fptype amp_real_j = p[indices[paramIndex_j+0]];
 	fptype amp_imag_j = p[indices[paramIndex_j+1]];
 
-	devcomplex<fptype> waveA_j(thrust::get<0>(cWaves[cacheToUse][evtNum*numResonances + j]),
-				   thrust::get<1>(cWaves[cacheToUse][evtNum*numResonances + j])); 
+	devcomplex<fptype> waveA_j(thrust::get<0>(cWaves[cacheToUse][evtRes + j]),
+				   thrust::get<1>(cWaves[cacheToUse][evtRes + j])); 
 
-	devcomplex<fptype> waveB_j(thrust::get<2>(cWaves[cacheToUse][evtNum*numResonances + j]),
-				   thrust::get<3>(cWaves[cacheToUse][evtNum*numResonances + j])); 
+	devcomplex<fptype> waveB_j(thrust::get<2>(cWaves[cacheToUse][evtRes + j]),
+				   thrust::get<3>(cWaves[cacheToUse][evtRes + j])); 
 	devcomplex<fptype> amps(amp_real, -amp_imag);
 	amps.multiply(amp_real_j, amp_imag_j); 
 
