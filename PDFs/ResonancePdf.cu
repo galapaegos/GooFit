@@ -1,14 +1,19 @@
 #include "ResonancePdf.hh" 
 
-EXEC_TARGET fptype twoBodyCMmom (double rMassSq, fptype d1m, fptype d2m) {
+EXEC_TARGET fptype twoBodyCMmom (const double &rMassSq, const fptype &d1m, const fptype &d2m) {
   // For A -> B + C, calculate momentum of B and C in rest frame of A. 
   // PDG 38.16.
   fptype kin1 = 1 - POW(d1m+d2m, 2) / rMassSq;
-  if (kin1 >= 0) kin1 = SQRT(kin1);
-  else kin1 = 1;
+  fptype sqkin1 = SQRT(kin1);
+  //if (kin1 >= 0) kin1 = SQRT(kin1);
+  //else kin1 = 1;
+  kin1 = (kin1 >= 0) ? sqkin1 : 1.0;
+
   fptype kin2 = 1 - POW(d1m-d2m, 2) / rMassSq;
-  if (kin2 >= 0) kin2 = SQRT(kin2);
-  else kin2 = 1; 
+  fptype sqkin2 = SQRT(kin2);
+  //if (kin2 >= 0) kin2 = SQRT(kin2);
+  //else kin2 = 1; 
+  kin2 = (kin2 >= 0) ? sqkin2 : 1.0;
 
   return 0.5*SQRT(rMassSq)*kin1*kin2; 
 }
@@ -100,7 +105,8 @@ EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsi
  
   // RBW evaluation
   fptype A = (resmass - rMassSq); 
-  fptype B = resmass*reswidth * POW(measureDaughterMoms / nominalDaughterMoms, 2.0*spin + 1) * frFactor / SQRT(rMassSq);
+  //fptype B = resmass*reswidth * POW(measureDaughterMoms / nominalDaughterMoms, 2.0*spin + 1) * frFactor / SQRT(rMassSq);
+  fptype B = resmass*reswidth * POW(measureDaughterMoms / nominalDaughterMoms, 2.0*spin + 1) * frFactor * RSQRT(rMassSq);
   fptype C = 1.0 / (A*A + B*B); 
   devcomplex<fptype> ret(A*C, B*C); // Dropping F_D=1
 
