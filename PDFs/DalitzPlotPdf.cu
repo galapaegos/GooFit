@@ -68,8 +68,9 @@ EXEC_TARGET fptype device_DalitzPlot (fptype* evt, fptype* p, unsigned int* indi
   unsigned int numResonances = RO_CACHE(indices[2]); 
   unsigned int cacheToUse    = RO_CACHE(indices[3]); 
 
-#pragma unroll
-  for (int i = 0; i < numResonances; ++i) {
+  int enr = evtNum*numResonances;
+  for (int i = 0; i < numResonances; ++i)
+  {
     int paramIndex  = parIndexFromResIndex_DP(i);
     fptype amp_real = RO_CACHE(p[RO_CACHE(indices[paramIndex+0])]);
     fptype amp_imag = RO_CACHE(p[RO_CACHE(indices[paramIndex+1])]);
@@ -250,32 +251,23 @@ __host__ fptype DalitzPlotPdf::normalise () const {
   thrust::counting_iterator<int> eventIndex(0); 
 
   for (int i = 0; i < decayInfo->resonances.size(); ++i) {
-<<<<<<< HEAD
-    if (redoIntegral[i]) {
-      thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, dataArray, eventSize)),
-			thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, eventSize)),
-			strided_range<DEVICE_VECTOR<devcomplex<fptype> >::iterator>(cachedWaves[i]->begin(), 
-										    cachedWaves[i]->end(), 
-										    1).begin(), 
-=======
     if (redoIntegral[i])
     {
 #ifdef TARGET_MPI
         thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, dataArray, eventSize)),
   			thrust::make_zip_iterator(thrust::make_tuple(eventIndex + m_iEventsPerTask, arrayAddress, eventSize)),
 			strided_range<DEVICE_VECTOR<devcomplex<fptype> >::iterator>(
-				cachedWaves->begin() + i, 
-				cachedWaves->end(), 
-				decayInfo->resonances.size()).begin(), 
+				cachedWaves[i]->begin(), 
+				cachedWaves[i]->end(), 
+				1).begin(), 
 			*(calculators[i]));
 #else
         thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, dataArray, eventSize)),
   			thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, eventSize)),
 			strided_range<DEVICE_VECTOR<devcomplex<fptype> >::iterator>(
-				cachedWaves->begin() + i, 
-				cachedWaves->end(), 
-				decayInfo->resonances.size()).begin(), 
->>>>>>> Changes to include MPI support.  This allows for the problem to be subdivided across multiple GPU's, or you can load up one GPU with more work.
+				cachedWaves[i]->begin() + i, 
+				cachedWaves[i]->end(), 
+				1).begin(), 
 			*(calculators[i]));
 #endif
     }

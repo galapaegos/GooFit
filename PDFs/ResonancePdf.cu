@@ -77,21 +77,22 @@ EXEC_TARGET fptype spinFactor (unsigned int spin, fptype motherMass, fptype daug
 
   fptype mc2 = motherMass2 - _mC2;
   fptype ab = _mA2 - _mB2;
-  if (2 == spin) {
-    sFactor *= sFactor; 
-    fptype extraterm = ((_mAB - (2*motherMass2) - (2*_mC2)) + massFactor*mc2*mc2);
-    extraterm *= ((_mAB - (2*_mA2) - (2*_mB2)) + massFactor*ab*ab);
-    extraterm /= 3;
-    sFactor -= extraterm;
-  }
+  //if (2 == spin) {
+  //  sFactor *= sFactor; 
+  //  fptype extraterm = ((_mAB - (2*motherMass2) - (2*_mC2)) + massFactor*mc2*mc2);
+  //  extraterm *= ((_mAB - (2*_mA2) - (2*_mB2)) + massFactor*ab*ab);
+  //  extraterm /= 3;
+  //  sFactor -= extraterm;
+  //}
 
-  //fptype res = sFactor*sFactor;
-  //fptype extraTerm = ((_mAB - (2*motherMass*motherMass) - (2*_mC*_mC)) + massFactor*pow((motherMass*motherMass - _mC*_mC), 2));
-  //extraTerm /= 3;
-  //res -= extraTerm;
+  fptype res = sFactor*sFactor;
+  fptype extraTerm = ((_mAB - (2*motherMass2) - (2*_mC2)) + massFactor*pow((motherMass2 - _mC2), 2));
+  extraTerm *= ((_mAB - (2*_mA2) - (2*_mB2)) + massFactor*ab*ab);
+  extraTerm /= 3;
+  res -= extraTerm;
 
-  return sFactor; 
-  //return (0 == spin) ? 1 : (2 == spin) ? res : sFactor;
+  //return sFactor; 
+  return (0 == spin) ? 1 : (2 == spin) ? res : sFactor;
 }
 
 EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsigned int* indices) {
@@ -118,19 +119,21 @@ EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsi
 					    (PAIR_23 == cyclic_index ? daug2Mass : daug1Mass), 
 					    (PAIR_12 == cyclic_index ? daug2Mass : daug3Mass));
 
-  if (0 != spin) {
-    frFactor =  dampingFactorSquare(nominalDaughterMoms, spin, meson_radius);
-    frFactor /= dampingFactorSquare(measureDaughterMoms, spin, meson_radius); 
-  }  
-  //fptype frRes = dampingFactorSquare(nominalDaughterMoms, spin, meson_radius);
-  //frRes /= dampingFactorSquare(measureDaughterMoms, spin, meson_radius);
+  fptype irmass = RSQRT(rMassSq);
 
-  //frFactor = (0 != spin) ? frRes : frFactor;
+  //if (0 != spin) {
+  //  frFactor =  dampingFactorSquare(nominalDaughterMoms, spin, meson_radius);
+  //  frFactor /= dampingFactorSquare(measureDaughterMoms, spin, meson_radius); 
+  //}  
+  fptype frRes = dampingFactorSquare(nominalDaughterMoms, spin, meson_radius);
+  frRes /= dampingFactorSquare(measureDaughterMoms, spin, meson_radius);
+
+  frFactor = (0 != spin) ? frRes : frFactor;
  
   // RBW evaluation
   fptype A = (resmass - rMassSq); 
   //fptype B = resmass*reswidth * POW(measureDaughterMoms / nominalDaughterMoms, 2.0*spin + 1) * frFactor / SQRT(rMassSq);
-  fptype B = resmass*reswidth * POW(measureDaughterMoms / nominalDaughterMoms, 2.0*spin + 1) * frFactor * RSQRT(rMassSq);
+  fptype B = resmass*reswidth * POW(measureDaughterMoms / nominalDaughterMoms, 2.0*spin + 1) * frFactor * irmass;
   fptype C = 1.0 / (A*A + B*B); 
   devcomplex<fptype> ret(A*C, B*C); // Dropping F_D=1
 
@@ -240,7 +243,7 @@ EXEC_TARGET devcomplex<fptype> gouSak (fptype m12, fptype m13, fptype m23, unsig
   // Implement Gou-Sak:
 
   //fptype D = (1.0 + dFun(resmass, daug2Mass, daug3Mass) * reswidth/SQRT(resmass));
-  fptype D = (1.0 + dFun(resmass, daug2Mass, daug3Mass) * reswidth*RSQRT(resmass));
+  fptype D = (1.0 + dFun(resmass, daug2Mass, daug3Mass) * reswidth/SQRT(resmass));
   fptype E = resmass - rMassSq + fsFun(rMassSq, resmass, reswidth, daug2Mass, daug3Mass);
   fptype F = SQRT(resmass) * reswidth * POW(measureDaughterMoms / nominalDaughterMoms, 2.0*spin + 1) * frFactor;
 
