@@ -1,50 +1,87 @@
 #include "ThreeGaussResolution_Aux.hh" 
 #include <math.h> 
 const fptype R1o6      = 1.0 / 6.0; 
-#define SQRTPIo2 (1.0/M_2_SQRTPI)
-#define SQRT1o2PI (SQRT(0.5*M_1_PI))
+//#define SQRTPIo2 (1.0/M_2_SQRTPI)
+//#define SQRT1o2PI (SQRT(0.5*M_1_PI))
 
 EXEC_TARGET void gaussian (fptype& _P1, fptype& _P2, fptype& _P3, fptype& _P4,
 			  fptype _tau, fptype adjTime, fptype xmixing, fptype ymixing, fptype adjSigma) {
 
+  fptype _Gamma    = 1.0 / _tau; 
+  fptype oneo2PI   = 0.5*M_1_PI;
   fptype _1oSqrtA  = adjSigma*M_SQRT2; 
-  fptype _1oSigma  = 1 / adjSigma; 
+  fptype _1oSigma  = 1.0 / adjSigma; 
+
+  fptype sqrtPIo2  = 1.0/M_2_SQRTPI;
+  fptype xmixGamma = xmixing * _Gamma;
+  fptype sqrt1o2PI = SQRT(oneo2PI);
   fptype _1o2SqrtA = 0.5 *_1oSqrtA; 
+
   fptype _1oSigma2 = _1oSigma * _1oSigma; 
-  fptype _NormG    = SQRT1o2PI *_1oSigma;
-  
-  fptype _C        = 0.5*adjTime*adjTime*_1oSigma2; 
+  fptype adjTime2  = adjTime*adjTime;
+  fptype twoAdj2   = 0.5*adjTime2;
   fptype _Bgn      = - adjTime*_1oSigma2; 
 
-  fptype _Gamma    = 1 / _tau; 
+  fptype _R    = xmixGamma * _1oSqrtA;
+  fptype _C        = twoAdj2*_1oSigma2; 
+  fptype _NormG    = sqrt1o2PI *_1oSigma;
+  fptype ymixGamma = ymixing * _Gamma;
+
   fptype _B        = _Gamma + _Bgn; 
-  
+  fptype _R2       = _R *_R; 
   fptype _u0       = _1o2SqrtA *_B; 
   fptype _u02      = _u0 *_u0; 
-  fptype _F        = _1oSqrtA * exp( -_C + _u02 ); 
-  
-  fptype _Ig0      = SQRTPIo2 * ERFC(_u0); 
-  fptype _Ig1      =  0.5 * exp(-_u02); 
-  fptype _Ig2      = _Ig1 *_u0 + 0.5 *_Ig0; 
-  fptype _Ig3      = _Ig1 * (_u02 + 1);
-  
-  fptype _R    = xmixing *_Gamma * _1oSqrtA; 
-  fptype _R2   = _R *_R; 
-  fptype _It0  = _F      *       _Ig0; 
-  fptype _It1  = _F *_R  *      (_Ig1 - _u0 *_Ig0); 
-  fptype _It2  = _F *_R2 *      (_Ig2 - _u0 *_Ig1 * 2  + _u02 *_Ig0); 
-  fptype _It3  = _F *_R2 * _R * (_Ig3 - _u0 *_Ig2 * 3  + _u02 *_Ig1 * 3 - _u0 *_u02 *_Ig0); 
+
+  fptype _BmymixGam = _B - ymixGamma;
+  fptype _BpymixGam = _B + ymixGamma;
+  fptype _Cu02     = -_C + _u02;
+  fptype erfcu0    = ERFC(_u0);
+
+  fptype expu02    = exp(-_u02);
+  fptype u02p1     = _u02 + 1;
+  fptype _F        = _1oSqrtA * exp(_Cu02); 
+  fptype _Ig0      = sqrtPIo2 * erfcu0;
+
+  fptype _Ig1      =  0.5 * expu02; 
+  fptype fr        = _F*_R;
+  fptype frr       = _F*_R2;
+  fptype halfIg0   = 0.5*_Ig0;
+
+  fptype Ig0u02    = _Ig0 * _u02;
+  fptype Ig0u0     = _Ig0 * _u0;
+  fptype Ig1u0     = _Ig1 * _u0;
+  fptype _It0  = _F * _Ig0;
+
+  fptype _Ig3      = _Ig1 * u02p1;
+  fptype _Ig2      = Ig1u0 + halfIg0; 
+  fptype Ig1u02    = _Ig1 * _u02;
+  fptype Ig0u03    = _Ig0 * _u02 * _u0;
+
+  fptype frrr      = frr*_R;
+  fptype Ig2u0     = _Ig2 * _u0;
+  fptype Ig1mIg0u0 = _Ig1 - Ig0u0;
+  fptype Ig1u0m2   = Ig1u0*2;
+
+  fptype Ig2u0m3  = Ig2u0*3;
+
+  fptype _It1  = fr   * Ig1mIg0u0; 
+  fptype _It2  = frr  * (_Ig2 - Ig1u0m2  + Ig0u02); 
+  fptype _It3  = frrr * (_Ig3 - Ig2u0m3  + Ig1u02 * 3 - Ig0u03); 
   
   //fptype _P0   = _NormG *  _It0; 
+
+  fptype _u0py = _1o2SqrtA * _BmymixGam; 
+  fptype _u0my = _1o2SqrtA * _BpymixGam; 
   _P2   = _NormG * (_It0 - 0.5  *_It2); 
-  _P4   = _NormG * (_It1 - R1o6 *_It3); 
-  
-  fptype _u0py = _1o2SqrtA * (_B - ymixing *_Gamma); 
-  fptype _u0my = _1o2SqrtA * (_B + ymixing *_Gamma); 
   fptype _Fpy  = _1oSqrtA * exp( -_C + _u0py * _u0py ); 
+  _P4   = _NormG * (_It1 - R1o6 *_It3); 
+
+  fptype erfcu0py = ERFC(_u0py);
+  fptype erfcu0my = ERFC(_u0my);
+
   fptype _Fmy  = _1oSqrtA * exp( -_C + _u0my * _u0my ); 
-  fptype _Ipy  = _Fpy * SQRTPIo2 * ERFC(_u0py); 
-  fptype _Imy  = _Fmy * SQRTPIo2 * ERFC(_u0my); 
+  fptype _Ipy  = _Fpy * sqrtPIo2 * erfcu0py; 
+  fptype _Imy  = _Fmy * sqrtPIo2 * erfcu0my; 
   _P1   = _NormG * 0.5 * (_Ipy + _Imy); 
   _P3   = _NormG * 0.5 * (_Ipy - _Imy);
 }

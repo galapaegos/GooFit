@@ -14,19 +14,28 @@ EXEC_TARGET fptype device_EvalHistogram (fptype* evt, fptype* p, unsigned int* i
   // Structure is
   // nP smoothingIndex totalHistograms (limit1 step1 bins1) (limit2 step2 bins2) nO o1 o2
   // where limit and step are indices into functorConstants. 
+  int idx[3];
+  idx[0] = indices[0];
+  idx[2] = indices[2];
 
-  int numVars = indices[indices[0] + 1]; 
+  int numVars = indices[idx[0] + 1]; 
   int globalBinNumber = 0; 
   int previous = 1; 
-  int myHistogramIndex = indices[2]; // 1 only used for smoothing
+  int myHistogramIndex = idx[2]; // 1 only used for smoothing
 
   for (int i = 0; i < numVars; ++i) { 
-    int varIndex = indices[indices[0] + 2 + i]; 
     int lowerBoundIdx   = 3*(i+1);
+    int varIndex = indices[idx[0] + 2 + i]; 
+    int tmp[3];
+    tmp[0] = indices[lowerBoundIdx + 0];
+    tmp[1] = indices[lowerBoundIdx + 1];
+    tmp[2] = indices[lowerBoundIdx + 2];
+
     //if (gpuDebug & 1) printf("[%i, %i] Smoothed: %i %i %i\n", BLOCKIDX, THREADIDX, i, varIndex, indices[varIndex]); 
     fptype currVariable = evt[varIndex];
-    fptype lowerBound   = functorConstants[indices[lowerBoundIdx + 0]];
-    fptype step         = functorConstants[indices[lowerBoundIdx + 1]];
+    fptype lowerBound   = functorConstants[tmp[0]];
+    fptype step         = functorConstants[tmp[1]];
+    fptype pprev        = tmp[2];
 
     currVariable -= lowerBound;
     currVariable /= step; 
@@ -34,7 +43,7 @@ EXEC_TARGET fptype device_EvalHistogram (fptype* evt, fptype* p, unsigned int* i
 
     int localBinNumber  = (int) FLOOR(currVariable); 
     globalBinNumber    += previous * localBinNumber; 
-    previous           *= indices[lowerBoundIdx + 2];
+    previous           *= pprev;
   }
 
   fptype* myHistogram = dev_smoothed_histograms[myHistogramIndex];

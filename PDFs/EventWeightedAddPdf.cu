@@ -30,10 +30,14 @@ EXEC_TARGET fptype device_EventWeightedAddPdfsExt (fptype* evt, fptype* p, unsig
   fptype ret = 0;
   fptype totalWeight = 0; 
   for (int i = 0; i < numParameters/2; ++i) {
-    fptype curr = callFunction(evt, indices[2*i + 1], indices[2*(i+1)]); 
+    int idx[3];
+    idx[0] = indices[2*i + 1];
+    idx[1] = indices[2*(i + 1)];
+    idx[2] = indices[2 + numParameters + i];
+    fptype curr = callFunction(evt, idx[0], idx[1]); 
     //if ((0 == BLOCKIDX) && (THREADIDX < 5) && (isnan(curr))) printf("NaN component %i %i\n", i, THREADIDX); 
-    fptype weight = evt[indices[2 + numParameters + i]];
-    ret += weight * curr * normalisationFactors[indices[2*(i+1)]]; 
+    fptype weight = evt[idx[2]];
+    ret += weight * curr * normalisationFactors[idx[1]]; 
     totalWeight += weight; 
 
     //if ((gpuDebug & 1) && (0 == THREADIDX))
