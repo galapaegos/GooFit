@@ -4,14 +4,31 @@ EXEC_TARGET fptype twoBodyCMmom (double rMassSq, fptype d1m, fptype d2m) {
   // For A -> B + C, calculate momentum of B and C in rest frame of A. 
   // PDG 38.16.
 
-  fptype kin1 = 1 - POW(d1m+d2m, 2) / rMassSq;
-  if (kin1 >= 0) kin1 = SQRT(kin1);
-  else kin1 = 1;
-  fptype kin2 = 1 - POW(d1m-d2m, 2) / rMassSq;
-  if (kin2 >= 0) kin2 = SQRT(kin2);
-  else kin2 = 1; 
+  //fptype kin1 = 1 - POW(d1m+d2m, 2) / rMassSq;
+  //if (kin1 >= 0) kin1 = SQRT(kin1);
+  //else kin1 = 1;
+  //fptype kin2 = 1 - POW(d1m-d2m, 2) / rMassSq;
+  //if (kin2 >= 0) kin2 = SQRT(kin2);
+  //else kin2 = 1; 
 
-  return 0.5*SQRT(rMassSq)*kin1*kin2; 
+  //return 0.5*SQRT(rMassSq)*kin1*kin2; 
+
+  fptype dpd = d1m + d2m;
+  fptype dmd = d1m - d2m;
+  fptype irms = 1.0/rMassSq;
+  fptype sq = SQRT(rMassSq);
+  fptype dpd2 = dpd*dpd;
+  fptype dmd2 = dmd*dmd;
+
+  fptype kin1 = 1 - dpd2 * irms;
+  fptype kin2 = 1 - dmd2 * irms;
+  fptype sqkin1 = SQRT(kin1);
+  fptype sqkin2 = SQRT(kin2);
+
+  kin1 = (kin1 >= 0.0) ? sqkin1 : 1.0;
+  kin2 = (kin2 >= 0.0) ? sqkin2 : 1.0;
+
+  return 0.5*sq*kin1*kin2; 
 }
 
 
@@ -70,16 +87,24 @@ EXEC_TARGET fptype spinFactor (unsigned int spin, fptype motherMass, fptype daug
 }
 
 EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsigned int* indices) {
-  fptype motherMass             = functorConstants[indices[1]+0];
-  fptype daug1Mass              = functorConstants[indices[1]+1];
-  fptype daug2Mass              = functorConstants[indices[1]+2];
-  fptype daug3Mass              = functorConstants[indices[1]+3];
-  fptype meson_radius           = functorConstants[indices[1]+4];
+  int idx[6];
+  idx[0] = indices[0];
+  idx[1] = indices[1];
+  idx[2] = indices[2];
+  idx[3] = indices[3];
+  idx[4] = indices[4];
+  idx[5] = indices[5];
 
-  fptype resmass                = cudaArray[indices[2]];
-  fptype reswidth               = cudaArray[indices[3]];
-  unsigned int spin             = indices[4];
-  unsigned int cyclic_index     = indices[5]; 
+  fptype motherMass             = functorConstants[idx[1]+0];
+  fptype daug1Mass              = functorConstants[idx[1]+1];
+  fptype daug2Mass              = functorConstants[idx[1]+2];
+  fptype daug3Mass              = functorConstants[idx[1]+3];
+  fptype meson_radius           = functorConstants[idx[1]+4];
+
+  fptype resmass                = cudaArray[idx[2]];
+  fptype reswidth               = cudaArray[idx[3]];
+  unsigned int spin             = idx[4];
+  unsigned int cyclic_index     = idx[5]; 
 
   fptype rMassSq = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
   fptype frFactor = 1;
@@ -177,16 +202,23 @@ EXEC_TARGET fptype fsFun (double s, double m2, double gam, double daug2Mass, dou
 }
 
 EXEC_TARGET devcomplex<fptype> gouSak (fptype m12, fptype m13, fptype m23, unsigned int* indices) {
-  fptype motherMass             = functorConstants[indices[1]+0];
-  fptype daug1Mass              = functorConstants[indices[1]+1];
-  fptype daug2Mass              = functorConstants[indices[1]+2];
-  fptype daug3Mass              = functorConstants[indices[1]+3];
-  fptype meson_radius           = functorConstants[indices[1]+4];
+  int idx[6];
+  idx[1] = indices[1];
+  idx[2] = indices[2];
+  idx[3] = indices[3];
+  idx[4] = indices[4];
+  idx[5] = indices[5];
 
-  fptype resmass                = cudaArray[indices[2]];
-  fptype reswidth               = cudaArray[indices[3]];
-  unsigned int spin             = indices[4];
-  unsigned int cyclic_index     = indices[5]; 
+  fptype motherMass             = functorConstants[idx[1]+0];
+  fptype daug1Mass              = functorConstants[idx[1]+1];
+  fptype daug2Mass              = functorConstants[idx[1]+2];
+  fptype daug3Mass              = functorConstants[idx[1]+3];
+  fptype meson_radius           = functorConstants[idx[1]+4];
+
+  fptype resmass                = cudaArray[idx[2]];
+  fptype reswidth               = cudaArray[idx[3]];
+  unsigned int spin             = idx[4];
+  unsigned int cyclic_index     = idx[5]; 
 
   fptype rMassSq = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
   fptype frFactor = 1;
@@ -202,6 +234,7 @@ EXEC_TARGET devcomplex<fptype> gouSak (fptype m12, fptype m13, fptype m23, unsig
   }
   
   // Implement Gou-Sak:
+  fptype sqrtfrFactor = SQRT(frFactor);
 
   fptype D = (1.0 + dFun(resmass, daug2Mass, daug3Mass) * reswidth/SQRT(resmass));
   fptype E = resmass - rMassSq + fsFun(rMassSq, resmass, reswidth, daug2Mass, daug3Mass);
@@ -209,7 +242,7 @@ EXEC_TARGET devcomplex<fptype> gouSak (fptype m12, fptype m13, fptype m23, unsig
 
   D       /= (E*E + F*F);
   devcomplex<fptype> retur(D*E, D*F); // Dropping F_D=1
-  retur *= SQRT(frFactor);
+  retur *= sqrtfrFactor;
   retur *= spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index);
 
   return retur; 
@@ -217,16 +250,23 @@ EXEC_TARGET devcomplex<fptype> gouSak (fptype m12, fptype m13, fptype m23, unsig
 
 
 EXEC_TARGET devcomplex<fptype> lass (fptype m12, fptype m13, fptype m23, unsigned int* indices) {
-  fptype motherMass             = functorConstants[indices[1]+0];
-  fptype daug1Mass              = functorConstants[indices[1]+1];
-  fptype daug2Mass              = functorConstants[indices[1]+2];
-  fptype daug3Mass              = functorConstants[indices[1]+3];
-  fptype meson_radius           = functorConstants[indices[1]+4];
+  int idx[6];
+  idx[1] = indices[1];
+  idx[2] = indices[2];
+  idx[3] = indices[3];
+  idx[4] = indices[4];
+  idx[5] = indices[5];
 
-  fptype resmass                = cudaArray[indices[2]];
-  fptype reswidth               = cudaArray[indices[3]];
-  unsigned int spin             = indices[4];
-  unsigned int cyclic_index     = indices[5];
+  fptype motherMass             = functorConstants[idx[1]+0];
+  fptype daug1Mass              = functorConstants[idx[1]+1];
+  fptype daug2Mass              = functorConstants[idx[1]+2];
+  fptype daug3Mass              = functorConstants[idx[1]+3];
+  fptype meson_radius           = functorConstants[idx[1]+4];
+
+  fptype resmass                = cudaArray[idx[2]];
+  fptype reswidth               = cudaArray[idx[3]];
+  unsigned int spin             = idx[4];
+  unsigned int cyclic_index     = idx[5];
 
   fptype rMassSq = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
   fptype frFactor = 1;
@@ -253,29 +293,66 @@ EXEC_TARGET devcomplex<fptype> lass (fptype m12, fptype m13, fptype m23, unsigne
   */
 
   fptype q = measureDaughterMoms;
-  fptype g = reswidth * POW(measureDaughterMoms / nominalDaughterMoms, 2.0*spin + 1) * frFactor / SQRT(rMassSq);
+  //fptype g = reswidth * POW(measureDaughterMoms / nominalDaughterMoms, 2.0*spin + 1) * frFactor / SQRT(rMassSq);
+  fptype g = reswidth * POW(measureDaughterMoms / nominalDaughterMoms, 2.0*spin + 1) * frFactor * RSQRT(rMassSq);
 
   fptype _a    = 0.22357;
   fptype _r    = -15.042;
   fptype _R    = 1; // ?
   fptype _phiR = 1.10644;
+
+  fptype _aq   = _a*q;
+  fptype _rq   = _r*q;
   fptype _B    = 0.614463;
   fptype _phiB = -0.0981907;
 
+  fptype i_aq  = 1.0/_aq;
+  fptype _rqq  = _rq*q;
+  fptype h_rq  = 0.5*_rq;
+  fptype i_a   = 1.0/_a;
+
+  fptype m_phiB = 2.0*_phiB;
+  fptype sqrtResMass = SQRT(resmass);
+
   // background phase motion
-  fptype cot_deltaB = (1.0 / (_a*q)) + 0.5*_r*q;
-  fptype qcot_deltaB = (1.0 / _a) + 0.5*_r*q*q;
+  fptype cot_deltaB = i_aq + h_rq;
+  fptype qcot_deltaB = i_a + 0.5*_rqq;
+
+  fptype cos_phiB = cos(_phiB);
+  fptype sin_phiB = sin(_phiB);
+
+  fptype sqrtResMassg = sqrtResMass*g;
+
+  fptype _phiRpm_phiB = _phiR + m_phiB;
+
+  devcomplex<fptype> a1 = devcomplex<fptype>(qcot_deltaB, q);
+  devcomplex<fptype> a2 = devcomplex<fptype>(qcot_deltaB, -q);
+
+  fptype cos1 = cos(_phiRpm_phiB);
+  fptype sin1 = sin(_phiRpm_phiB);
 
   // calculate resonant part
-  devcomplex<fptype> expi2deltaB = devcomplex<fptype>(qcot_deltaB,q)/devcomplex<fptype>(qcot_deltaB,-q);
-  devcomplex<fptype>  resT = devcomplex<fptype>(cos(_phiR+2*_phiB),sin(_phiR+2*_phiB))*_R;
+  //devcomplex<fptype> expi2deltaB = devcomplex<fptype>(qcot_deltaB,q)/devcomplex<fptype>(qcot_deltaB,-q);
+  devcomplex<fptype> expi2deltaB = a1/a2;
+  //devcomplex<fptype> resT = devcomplex<fptype>(cos(_phiR+2*_phiB),sin(_phiR+2*_phiB))*_R;
+  devcomplex<fptype> resT = devcomplex<fptype>(cos1, sin1)*_R;
 
-  devcomplex<fptype> prop = devcomplex<fptype>(1, 0)/devcomplex<fptype>(resmass-rMassSq, SQRT(resmass)*g);
+  fptype resmass_m_rMassSq = resmass - rMassSq;
+  fptype resmasswidth = resmass*reswidth;
+
+  //devcomplex<fptype> prop = devcomplex<fptype>(1, 0)/devcomplex<fptype>(resmass-rMassSq, SQRT(resmass)*g);
+  devcomplex<fptype> prop = devcomplex<fptype>(1, 0)/devcomplex<fptype>(resmass_m_rMassSq, sqrtResMassg);
   // resT *= prop*m0*_g0*m0/twoBodyCMmom(m0*m0, _trackinfo[i])*expi2deltaB;
-  resT *= prop*(resmass*reswidth/nominalDaughterMoms)*expi2deltaB;
+
+  devcomplex<fptype> b1 (cos_phiB, sin_phiB);
+  devcomplex<fptype> propdeltaB = prop*expi2deltaB;
+  fptype cot_deltaB_sin = cot_deltaB*sin_phiB;
+
+  resT *= propdeltaB*(resmasswidth/nominalDaughterMoms);
 
   // calculate bkg part
-  resT += devcomplex<fptype>(cos(_phiB),sin(_phiB))*_B*(cos(_phiB)+cot_deltaB*sin(_phiB))*SQRT(rMassSq)/devcomplex<fptype>(qcot_deltaB,-q);
+  //resT += devcomplex<fptype>(cos(_phiB),sin(_phiB))*_B*(cos(_phiB)+cot_deltaB*sin(_phiB))*SQRT(rMassSq)/devcomplex<fptype>(qcot_deltaB,-q);
+  resT += b1*_B*(cos_phiB + cot_deltaB_sin)*SQRT(rMassSq)/a2;
 
   resT *= SQRT(frFactor);
   resT *= spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index);

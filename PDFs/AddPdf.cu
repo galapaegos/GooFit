@@ -5,22 +5,33 @@ EXEC_TARGET fptype device_AddPdfs (fptype* evt, fptype* p, unsigned int* indices
   fptype ret = 0;
   fptype totalWeight = 0; 
   for (int i = 1; i < numParameters-3; i += 3) {
-    totalWeight += p[indices[i+2]];
-    fptype curr = callFunction(evt, indices[i], indices[i+1]); 
-    fptype weight = p[indices[i+2]];
-    ret += weight * curr * normalisationFactors[indices[i+1]]; 
+    int idx[3];
+    idx[0] = indices[i];
+    idx[1] = indices[i + 1];
+    idx[2] = indices[i + 2];
+    fptype pidx = p[idx[2]];
+    fptype norm = normalisationFactors[idx[1]];
+
+    totalWeight += pidx;
+    fptype curr = callFunction(evt, idx[0], idx[1]); 
+    fptype weight = pidx;
+    ret += weight * curr * norm; 
 
     //if ((gpuDebug & 1) && (0 == THREADIDX) && (0 == BLOCKIDX)) 
     //if ((1 > (int) floor(0.5 + evt[8])) && (gpuDebug & 1) && (paramIndices + debugParamIndex == indices))
     //printf("Add comp %i: %f * %f * %f = %f (%f)\n", i, weight, curr, normalisationFactors[indices[i+1]], weight*curr*normalisationFactors[indices[i+1]], ret); 
 
   }
+
+  int tidx[2];
+  tidx[0] = indices[numParameters];
+  tidx[1] = indices[numParameters - 1];
   // numParameters does not count itself. So the array structure for two functions is
   // nP | F P w | F P
   // in which nP = 5. Therefore the parameter index for the last function pointer is nP, and the function index is nP-1. 
   //fptype last = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[numParameters-1]])))(evt, p, paramIndices + indices[numParameters]);
-  fptype last = callFunction(evt, indices[numParameters - 1], indices[numParameters]);
-  ret += (1 - totalWeight) * last * normalisationFactors[indices[numParameters]]; 
+  fptype last = callFunction(evt, tidx[1], tidx[0]);
+  ret += (1 - totalWeight) * last * normalisationFactors[tidx[0]]; 
 
   //if ((THREADIDX < 50) && (isnan(ret))) printf("NaN final component %f %f\n", last, totalWeight); 
 

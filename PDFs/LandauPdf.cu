@@ -29,6 +29,8 @@ EXEC_TARGET fptype device_Landau (fptype* evt, fptype* p, unsigned int* indices)
   fptype mpv   = p[indices[1]];
   fptype sigma = p[indices[2]];
 
+  //printf ("x:%f mpv:%f sigma:%f\n", x, mpv, sigma);
+
   if (sigma <= 0) return 0; 
   fptype v = (x - mpv)/sigma;
   fptype u, ue, us, denlan;

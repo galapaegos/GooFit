@@ -30,7 +30,7 @@ EXEC_TARGET void gaussian (fptype& _P1, fptype& _P2, fptype& _P3, fptype& _P4,
   fptype _B        = _Gamma + _Bgn; 
   fptype _R2       = _R *_R; 
   fptype _u0       = _1o2SqrtA *_B; 
-  fptype _u02      = _u0 *_u0; 
+  fptype _u02      = _1o2SqrtA * _B * _1o2SqrtA * _B; 
 
   fptype _BmymixGam = _B - ymixGamma;
   fptype _BpymixGam = _B + ymixGamma;
@@ -102,6 +102,9 @@ EXEC_TARGET fptype device_threegauss_resolution (fptype coshterm, fptype costerm
   fptype outlBias        = p[indices[7]];
   fptype outlScaleFactor = p[indices[8]];
 
+  fptype sinhterm2 = sinhterm * 2.0;
+  fptype sinterm2 = sinterm * 2.0;
+
   fptype cp1 = 0;
   fptype cp2 = 0;
   fptype cp3 = 0;
@@ -123,11 +126,16 @@ EXEC_TARGET fptype device_threegauss_resolution (fptype coshterm, fptype costerm
   fptype _P3 = coreFraction*cp3 + tailFraction*tp3 + outlFraction*op3;
   fptype _P4 = coreFraction*cp4 + tailFraction*tp4 + outlFraction*op4;
 
+  fptype cosh_P1 = coshterm * _P1;
+  fptype cos_P2 = costerm * _P2;
+  fptype sinh_P3 = sinhterm2 * _P3;
+  fptype sin_P4 = sinterm2 * _P4;
+
   fptype ret = 0;
-  ret += coshterm*_P1;
-  ret += costerm*_P2; 
-  ret -= 2*sinhterm * _P3; 
-  ret -= 2*sinterm * _P4; // Notice sign difference wrt to Mikhail's code, because I have AB* and he has A*B. 
+  ret += cosh_P1;
+  ret += cos_P2; 
+  ret -= sinh_P3; 
+  ret -= sin_P4; // Notice sign difference wrt to Mikhail's code, because I have AB* and he has A*B. 
 
   //cuPrintf("device_threegauss_resolution %f %f %f %f %f\n", coshterm, costerm, sinhterm, sinterm, dtime); 
   return ret; 

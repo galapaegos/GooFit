@@ -16,40 +16,63 @@ MEM_CONSTANT fptype* dev_resWorkSpace[100];
 MEM_CONSTANT int modelOffset[100]; 
 
 EXEC_TARGET fptype device_ConvolvePdfs (fptype* evt, fptype* p, unsigned int* indices) { 
+  int idx[8];
+  idx[0] = indices[0];
+  idx[2] = indices[2];
+  idx[4] = indices[4];
+  idx[5] = indices[5];
+  idx[6] = indices[6];
+  idx[7] = indices[2 + idx[0]];
+
   fptype ret     = 0; 
-  fptype loBound = functorConstants[indices[5]+0];
-  fptype hiBound = functorConstants[indices[5]+1];
-  fptype step    = functorConstants[indices[5]+2];
-  fptype x0      = evt[indices[2 + indices[0]]]; 
-  int workSpaceIndex = indices[6]; 
+  fptype step    = functorConstants[idx[5]+2];
+  fptype loBound = functorConstants[idx[5]+0];
+  fptype hiBound = functorConstants[idx[5]+1];
+  fptype x0      = evt[idx[7]]; 
+  fptype i_step  = 1.0/step;
+  int workSpaceIndex = idx[6]; 
 
-  int numbins = (int) FLOOR((hiBound - loBound) / step + 0.5); 
+  fptype n1 = normalisationFactors[idx[2]];
+  fptype n2 = normalisationFactors[idx[4]];
 
-  fptype lowerBoundOffset = loBound / step;
+  int numbins = (int) FLOOR((hiBound - loBound) * i_step + 0.5); 
+
+  fptype lowerBoundOffset = loBound * i_step;
   lowerBoundOffset -= FLOOR(lowerBoundOffset); 
-  int offsetInBins = (int) FLOOR(x0 / step - lowerBoundOffset); 
+  int offsetInBins = (int) FLOOR(x0 * i_step - lowerBoundOffset); 
 
   // Brute-force calculate integral M(x) * R(x - x0) dx
+  int mdx = modelOffset[workSpaceIndex];
+
   for (int i = 0; i < numbins; ++i) {
     fptype model = dev_modWorkSpace[workSpaceIndex][i]; 
-    fptype resol = dev_resWorkSpace[workSpaceIndex][i + modelOffset[workSpaceIndex] - offsetInBins]; 
+    fptype resol = dev_resWorkSpace[workSpaceIndex][i + mdx - offsetInBins]; 
     ret += model*resol;
   }
 
-  ret *= normalisationFactors[indices[2]]; 
-  ret *= normalisationFactors[indices[4]]; 
+  //ret *= normalisationFactors[idx[2]]; 
+  //ret *= normalisationFactors[idx[4]]; 
 
-  return ret; 
+  return ret*n1*n2; 
 }
 
 EXEC_TARGET fptype device_ConvolveSharedPdfs (fptype* evt, fptype* p, unsigned int* indices) { 
+  int idx[9];
+  idx[0] = indices[0];
+  idx[2] = indices[2];
+  idx[4] = indices[4];
+  idx[5] = indices[5];
+  idx[6] = indices[6];
+  idx[7] = indices[7];
+  idx[8] = indices[2 + idx[0]];
+
   fptype ret     = 0; 
-  fptype loBound = functorConstants[indices[5]+0];
-  fptype hiBound = functorConstants[indices[5]+1];
-  fptype step    = functorConstants[indices[5]+2];
-  fptype x0      = evt[indices[2 + indices[0]]]; 
-  unsigned int workSpaceIndex = indices[6]; 
-  unsigned int numOthers = indices[7] + 1; // +1 for this PDF. 
+  fptype loBound = functorConstants[idx[5]+0];
+  fptype hiBound = functorConstants[idx[5]+1];
+  fptype step    = functorConstants[idx[5]+2];
+  fptype x0      = evt[idx[8]]; 
+  unsigned int workSpaceIndex = idx[6]; 
+  unsigned int numOthers = idx[7] + 1; // +1 for this PDF. 
 
   int numbins = (int) FLOOR((hiBound - loBound) / step + 0.5); 
 
@@ -99,8 +122,8 @@ EXEC_TARGET fptype device_ConvolveSharedPdfs (fptype* evt, fptype* p, unsigned i
     THREAD_SYNCH 
   }
 
-  ret *= normalisationFactors[indices[2]]; 
-  ret *= normalisationFactors[indices[4]]; 
+  ret *= normalisationFactors[idx[2]]; 
+  ret *= normalisationFactors[idx[4]]; 
 
   return ret; 
 }

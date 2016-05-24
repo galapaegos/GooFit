@@ -13,12 +13,28 @@ EXEC_TARGET fptype device_ExpGaus (fptype* evt, fptype* p, unsigned int* indices
   fptype sigma = p[idx[2]];
   fptype alpha = p[idx[3]];
 
-  fptype ret = 0.5*alpha; 
-  fptype exparg = ret * (2*mean + alpha*sigma*sigma - 2*x);
-  fptype erfarg = (mean + alpha*sigma*sigma - x) / (sigma * 1.4142135623);
+  fptype x2 = 2.0*x;
+  fptype mean2 = 2.0*mean;
+  fptype sigma14 = sigma*1.4142135623;
+  fptype sigma2 = sigma*sigma;
+  fptype halpha = 0.5*alpha;
+  fptype sigma2alpha = alpha*sigma2;
 
-  ret *= EXP(exparg); 
-  ret *= ERFC(erfarg); 
+  fptype ret = halpha;
+
+  fptype meanx2 = mean2 - x2;
+  fptype meanx  = mean - x;
+  fptype i_sigma = 1.0/sigma14;
+  fptype combo1 = sigma2alpha + meanx2;
+  fptype combo2 = meanx + sigma2alpha;
+  fptype expr = combo1*ret;
+  fptype erfr = combo2*i_sigma;
+
+  fptype exparg = EXP(expr);
+  fptype erfarg = ERFC(erfr);
+
+  ret *= exparg; 
+  ret *= erfarg; 
 
   return ret; 
 }

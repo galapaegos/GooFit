@@ -2,9 +2,21 @@
 //#include <limits>
 
 EXEC_TARGET fptype device_ScaledGaussian (fptype* evt, fptype* p, unsigned int* indices) {
+  int idx[4];
+  idx[0] = indices[1];
+  idx[1] = indices[2];
+  idx[2] = indices[3];
+  idx[3] = indices[4];
+
+  fptype pidx[4];
+  pidx[0] = p[idx[0]];
+  pidx[1] = p[idx[1]];
+  pidx[2] = p[idx[2]];
+  pidx[3] = p[idx[3]];
+  
   fptype x = evt[0]; 
-  fptype mean = p[indices[1]] + p[indices[3]];
-  fptype sigma = p[indices[2]] * (1 + p[indices[4]]);
+  fptype mean = pidx[0] + pidx[2];
+  fptype sigma = pidx[1] * (1 + pidx[3]);
   fptype ret = EXP(-0.5*(x-mean)*(x-mean)/(sigma*sigma));
 
 #ifdef CUDAPRINT

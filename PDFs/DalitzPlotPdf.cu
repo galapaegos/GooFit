@@ -63,6 +63,7 @@ EXEC_TARGET fptype device_DalitzPlot (fptype* evt, fptype* p, unsigned int* indi
   unsigned int numResonances = indices[2]; 
   unsigned int cacheToUse    = indices[3]; 
 
+#pragma unroll
   for (int i = 0; i < numResonances; ++i) {
     int paramIndex  = parIndexFromResIndex_DP(i);
     fptype amp_real = p[indices[paramIndex+0]];
