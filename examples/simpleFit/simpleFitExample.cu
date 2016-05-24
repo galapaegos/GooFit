@@ -19,7 +19,17 @@
 #include <sys/times.h>
 #include <iostream>
 
-using namespace std; 
+#include <chrono>
+
+#define timeCheck() std::chrono::high_resolution_clock::now ()
+#define duration(x) std::chrono::duration<double, milli> (x).count()
+#define profile(x)\
+ {\
+   auto start = std::chrono::high_resolution_clock::now();\
+   x;\
+   auto stop = std::chrono::high_resolution_clock::now();\
+   std::cout << std::chrono::duration<double, milli> (stop - start).count() << " ms. " << std::endl;\
+ }
 
 // CPU-side Novosibirsk evaluation for use in generating toy MC. 
 double novosib (double x, double peak, double width, double tail) {
@@ -53,9 +63,10 @@ TCanvas* foo = 0;
 void fitAndPlot (GooPdf* total, UnbinnedDataSet* data, TH1F& dataHist, Variable* xvar, const char* fname) {
   total->setData(data);
   FitManager fitter(total);
-  fitter.fit(); 
+  profile(fitter.fit());
   fitter.getMinuitValues(); 
 
+/*
   TH1F pdfHist("pdfHist", "", xvar->numbins, xvar->lowerlimit, xvar->upperlimit);
   pdfHist.SetStats(false);
 
@@ -104,9 +115,21 @@ void fitAndPlot (GooPdf* total, UnbinnedDataSet* data, TH1F& dataHist, Variable*
      std::cerr << "I don't understand dataHist/pdfHist" << std::endl;
   }
 #endif
+*/
 }
 
 int main (int argc, char** argv) {
+  if (argc != 2)
+  {
+    printf ("Need to pass the number of events to generate\n");
+    return -1;
+  }
+
+  int numEvents = atoi (argv[1]);
+
+  auto start = timeCheck();
+
+#ifdef HAVE_MPI
   //MPI setup
   MPI_Status stat;
 
@@ -116,6 +139,7 @@ int main (int argc, char** argv) {
   MPI_Init (&argc, &argv);
   MPI_Comm_size (MPI_COMM_WORLD, &numProcs);
   MPI_Comm_rank (MPI_COMM_WORLD, &myId);
+#endif
 
   //setting the device based on the thread
   //cudaSetDevice(myId);
@@ -154,12 +178,14 @@ int main (int argc, char** argv) {
 
   TRandom donram(42); 
 
+/*
   double maxNovo = 0; 
   for (double x = xvar->lowerlimit; x < xvar->upperlimit; x += 0.01) {
     double curr = novosib(x, 0.3, 0.5, 1.0);
     if (curr < maxNovo) continue;
     maxNovo = curr; 
   }
+*/
 
   double leftSigma = 13;
   double rightSigma = 29;
@@ -169,7 +195,7 @@ int main (int argc, char** argv) {
   double bifpoint = -10; 
 
   // Generating three sets of toy MC. 
-  for (int i = 0; i < 100000; ++i) {
+  for (int i = 0; i < numEvents; ++i) {
     // Landau
     xvar->value = xvar->upperlimit + 1; 
     while ((xvar->value > xvar->upperlimit) || (xvar->value < xvar->lowerlimit)) {
@@ -178,6 +204,7 @@ int main (int argc, char** argv) {
     landdata.addEvent(); 
     landHist.Fill(xvar->value); 
 
+/*
     // Bifurcated Gaussian
     if (donram.Uniform() < (leftIntegral / totalIntegral)) {
       xvar->value = bifpoint - 1;
@@ -198,6 +225,7 @@ int main (int argc, char** argv) {
     }
     novodata.addEvent(); 
     novoHist.Fill(xvar->value); 
+*/
   }
 
 #if HAVE_ROOT
@@ -209,7 +237,8 @@ int main (int argc, char** argv) {
   GooPdf* landau = new LandauPdf("landau", xvar, mpv, sigma); 
   fitAndPlot(landau, &landdata, landHist, xvar, "landau.png"); 
 
-  
+
+/*  
   Variable* nmean = new Variable("nmean", 0.4, -10.0, 10.0);
   Variable* nsigm = new Variable("nsigm", 0.6, 0.0, 1.0);
   Variable* ntail = new Variable("ntail", 1.1, 0.1, 0.0, 3.0);
@@ -221,9 +250,16 @@ int main (int argc, char** argv) {
   Variable* rsigm = new Variable("rsigm", 20, 1, 10, 40); 
   GooPdf* bifur = new BifurGaussPdf("bifur", xvar, gmean, lsigm, rsigm); 
   fitAndPlot(bifur, &bifgdata, bifgHist, xvar, "bifur.png"); 
+*/
 
+  auto end = timeCheck();
+
+  std::cout << duration(end - start) << "ms" << std::endl;
+
+#ifdef HAVE_MPI
   //MPI finalize
   MPI_Finalize ();
+#endif
    
   return 0;
 }

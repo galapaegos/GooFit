@@ -9,12 +9,13 @@
 
 class Indexable {
 public:
-  Indexable (std::string n, fptype val = 0) : name(n), value(val), index(-1) {}
+  Indexable (std::string n, fptype val = 0) : name(n), value(val), index(-1), mixValue(0) {}
   virtual ~Indexable() {}
 
   int getIndex () const {return index;}
   std::string name;  
   fptype value;
+  fptype mixValue;
   int index; 
 };
 
@@ -37,7 +38,7 @@ public:
   fptype lowerlimit;
   int numbins; 
   bool fixed; 
-  fptype blind; 
+  fptype blind;
 };
 
 class CountVariable : public Variable {

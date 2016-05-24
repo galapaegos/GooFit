@@ -70,6 +70,7 @@ void FitFun(int &npar, double *gin, double &fun, double *fp, int iflag) {
   int counter = 0; 
   for (std::vector<Variable*>::iterator i = vars.begin(); i != vars.end(); ++i) {
     if (std::isnan(fp[counter])) cout << "Variable " << (*i)->name << " " << (*i)->index << " is NaN\n"; 
+    (*i)->mixValue = fp[counter] + (*i)->blind;
     pars[(*i)->getIndex()] = fp[counter++] + (*i)->blind; 
   }
   
