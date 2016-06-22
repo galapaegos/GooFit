@@ -29,7 +29,7 @@ EXEC_TARGET fptype device_incoherent (fptype* evt, fptype* p, unsigned int* indi
 
   // Multiply by efficiency  
   int effFunctionIdx = parIndexFromResIndex_incoherent(numResonances); 
-  fptype eff = callFunction(evt, indices[effFunctionIdx], indices[effFunctionIdx + 1]); 
+  fptype eff = callFunction(evt, indices[effFunctionIdx], indices); 
 
   ret *= eff;
 
@@ -65,7 +65,7 @@ __host__ IncoherentSumPdf::IncoherentSumPdf (std::string n, Variable* m12, Varia
   decayConstants[2] = decayInfo->daug2Mass;
   decayConstants[3] = decayInfo->daug3Mass;
   decayConstants[4] = decayInfo->meson_radius;
-  MEMCPY_TO_SYMBOL(functorConstants, decayConstants, 5*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice);  
+  //MEMCPY_TO_SYMBOL(functorConstants, decayConstants, 5*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice);  
 
   pindices.push_back(decayInfo->resonances.size()); 
   static int cacheCount = 0; 
@@ -133,7 +133,7 @@ __host__ fptype IncoherentSumPdf::normalise () const {
   // so set normalisation factor to 1 so it doesn't get multiplied by zero. 
   // Copy at this time to ensure that the SpecialCalculators, which need the efficiency, 
   // don't get zeroes through multiplying by the normFactor. 
-  MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 
   int totalBins = _m12->numbins * _m13->numbins;
   if (!dalitzNormRange) {
@@ -244,11 +244,11 @@ EXEC_TARGET fptype SpecialIncoherentIntegrator::operator () (thrust::tuple<int, 
   binCenterM13        *= (globalBinNumber + 0.5); 
   binCenterM13        += lowerBoundM13; 
 
-  unsigned int* indices = paramIndices + parameters;   
-  fptype motherMass = functorConstants[indices[1] + 0]; 
-  fptype daug1Mass  = functorConstants[indices[1] + 1]; 
-  fptype daug2Mass  = functorConstants[indices[1] + 2]; 
-  fptype daug3Mass  = functorConstants[indices[1] + 3];  
+  unsigned int* indices = NULL;   
+  fptype motherMass = cudaArray[indices[1] + 0]; 
+  fptype daug1Mass  = cudaArray[indices[1] + 1]; 
+  fptype daug2Mass  = cudaArray[indices[1] + 2]; 
+  fptype daug3Mass  = cudaArray[indices[1] + 3];  
 
   if (!inDalitz(binCenterM12, binCenterM13, motherMass, daug1Mass, daug2Mass, daug3Mass)) return 0;
 
@@ -263,7 +263,7 @@ EXEC_TARGET fptype SpecialIncoherentIntegrator::operator () (thrust::tuple<int, 
   fakeEvt[indices[indices[0] + 2 + 0]] = binCenterM12;
   fakeEvt[indices[indices[0] + 2 + 1]] = binCenterM13;
   int effFunctionIdx = parIndexFromResIndex_incoherent(numResonances); 
-  fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices[effFunctionIdx + 1]); 
+  fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices); 
 
   return ret.abs2() * eff; 
 }
@@ -280,13 +280,13 @@ EXEC_TARGET devcomplex<fptype> SpecialIncoherentResonanceCalculator::operator ()
   int evtNum = thrust::get<0>(t); 
   fptype* evt = thrust::get<1>(t) + (evtNum * thrust::get<2>(t)); 
 
-  unsigned int* indices = paramIndices + parameters;   // Jump to TDDP position within parameters array
+  unsigned int* indices = NULL;   // Jump to TDDP position within parameters array
   fptype m12 = evt[indices[2 + indices[0]]]; 
   fptype m13 = evt[indices[3 + indices[0]]];
-  fptype motherMass = functorConstants[indices[1] + 0]; 
-  fptype daug1Mass  = functorConstants[indices[1] + 1]; 
-  fptype daug2Mass  = functorConstants[indices[1] + 2]; 
-  fptype daug3Mass  = functorConstants[indices[1] + 3];  
+  fptype motherMass = cudaArray[indices[1] + 0]; 
+  fptype daug1Mass  = cudaArray[indices[1] + 1]; 
+  fptype daug2Mass  = cudaArray[indices[1] + 2]; 
+  fptype daug3Mass  = cudaArray[indices[1] + 3];  
   if (!inDalitz(m12, m13, motherMass, daug1Mass, daug2Mass, daug3Mass)) return devcomplex<fptype>(0, 0); 
   fptype m23 = motherMass*motherMass + daug1Mass*daug1Mass + daug2Mass*daug2Mass + daug3Mass*daug3Mass - m12 - m13; 
 

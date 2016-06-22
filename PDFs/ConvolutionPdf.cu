@@ -25,15 +25,15 @@ EXEC_TARGET fptype device_ConvolvePdfs (fptype* evt, fptype* p, unsigned int* in
   idx[7] = indices[2 + idx[0]];
 
   fptype ret     = 0; 
-  fptype step    = functorConstants[idx[5]+2];
-  fptype loBound = functorConstants[idx[5]+0];
-  fptype hiBound = functorConstants[idx[5]+1];
+  fptype step    = cudaArray[idx[5]+2];
+  fptype loBound = cudaArray[idx[5]+0];
+  fptype hiBound = cudaArray[idx[5]+1];
   fptype x0      = evt[idx[7]]; 
   fptype i_step  = 1.0/step;
   int workSpaceIndex = idx[6]; 
 
-  fptype n1 = normalisationFactors[idx[2]];
-  fptype n2 = normalisationFactors[idx[4]];
+  fptype n1 = cudaArray[idx[2]];
+  fptype n2 = cudaArray[idx[4]];
 
   int numbins = (int) FLOOR((hiBound - loBound) * i_step + 0.5); 
 
@@ -67,9 +67,9 @@ EXEC_TARGET fptype device_ConvolveSharedPdfs (fptype* evt, fptype* p, unsigned i
   idx[8] = indices[2 + idx[0]];
 
   fptype ret     = 0; 
-  fptype loBound = functorConstants[idx[5]+0];
-  fptype hiBound = functorConstants[idx[5]+1];
-  fptype step    = functorConstants[idx[5]+2];
+  fptype loBound = cudaArray[idx[5]+0];
+  fptype hiBound = cudaArray[idx[5]+1];
+  fptype step    = cudaArray[idx[5]+2];
   fptype x0      = evt[idx[8]]; 
   unsigned int workSpaceIndex = idx[6]; 
   unsigned int numOthers = idx[7] + 1; // +1 for this PDF. 
@@ -122,8 +122,8 @@ EXEC_TARGET fptype device_ConvolveSharedPdfs (fptype* evt, fptype* p, unsigned i
     THREAD_SYNCH 
   }
 
-  ret *= normalisationFactors[idx[2]]; 
-  ret *= normalisationFactors[idx[4]]; 
+  ret *= cudaArray[idx[2]]; 
+  ret *= cudaArray[idx[4]]; 
 
   return ret; 
 }
@@ -222,7 +222,7 @@ __host__ void ConvolutionPdf::setIntegrationConstants (fptype lo, fptype hi, fpt
   host_iConsts[0] = lo;
   host_iConsts[1] = hi;
   host_iConsts[2] = step;
-  MEMCPY_TO_SYMBOL(functorConstants, host_iConsts, 3*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(functorConstants, host_iConsts, 3*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice); 
   if (modelWorkSpace) {
     delete modelWorkSpace;
     delete resolWorkSpace;
@@ -288,7 +288,7 @@ __host__ fptype ConvolutionPdf::normalise () const {
 
   // First set normalisation factors to one so we can evaluate convolution without getting zeroes
   recursiveSetNormalisation(fptype(1.0)); 
-  MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 
   // Next recalculate functions at each point, in preparation for convolution integral
   thrust::constant_iterator<fptype*> arrayAddress(dev_iConsts); 

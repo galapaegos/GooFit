@@ -33,8 +33,8 @@ EXEC_TARGET fptype device_EvalHistogram (fptype* evt, fptype* p, unsigned int* i
 
     //if (gpuDebug & 1) printf("[%i, %i] Smoothed: %i %i %i\n", BLOCKIDX, THREADIDX, i, varIndex, indices[varIndex]); 
     fptype currVariable = evt[varIndex];
-    fptype lowerBound   = functorConstants[tmp[0]];
-    fptype step         = functorConstants[tmp[1]];
+    fptype lowerBound   = cudaArray[tmp[0]];
+    fptype step         = cudaArray[tmp[1]];
     fptype pprev        = tmp[2];
 
     currVariable -= lowerBound;
@@ -59,7 +59,7 @@ struct Smoother {
   int parameters;
 
   EXEC_TARGET fptype operator () (int globalBin) {
-    unsigned int* indices = paramIndices + parameters; 
+    unsigned int* indices = NULL; 
     int numVars = indices[indices[0] + 1]; 
     fptype smoothing = cudaArray[indices[1]];
     int histIndex = indices[2]; 
@@ -139,7 +139,7 @@ __host__ SmoothHistogramPdf::SmoothHistogramPdf (std::string n, BinnedDataSet* h
     host_histogram.push_back(curr);
     totalEvents += curr; 
   }
-  MEMCPY_TO_SYMBOL(functorConstants, host_constants, numConstants*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(functorConstants, host_constants, numConstants*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice); 
   if (totalEvents > 0) copyHistogramToDevice(host_histogram);
   else std::cout << "Warning: Empty histogram supplied to " << getName() << " not copied to device. Expect copyHistogramToDevice call later.\n"; 
 

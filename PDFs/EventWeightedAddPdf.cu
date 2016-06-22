@@ -8,15 +8,18 @@ EXEC_TARGET fptype device_EventWeightedAddPdfs (fptype* evt, fptype* p, unsigned
   for (int i = 0; i < numParameters/2 - 1; ++i) {
     fptype weight = evt[indices[2 + numParameters + i]];
     totalWeight += weight;
-    fptype curr = callFunction(evt, indices[2*i + 1], indices[2*(i+1)]); 
-    ret += weight * curr * normalisationFactors[indices[2*(i+1)]]; 
+
+    *indices += numParameters;
+
+    fptype curr = callFunction(evt, indices[2*i + 1], indices); 
+    ret += weight * curr * cudaArray[indices[2*(i+1)]]; 
   }
   // numParameters does not count itself. So the array structure for two functions is
   // nP | F P | F P | nO | o1 
   // in which nP = 4. and nO = 1. Therefore the parameter index for the last function pointer is nP, and the function index is nP-1. 
   //fptype last = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[numParameters-1]])))(evt, p, paramIndices + indices[numParameters]);
-  fptype last = callFunction(evt, indices[numParameters-1], indices[numParameters]); 
-  ret += (1 - totalWeight) * last * normalisationFactors[indices[numParameters]]; 
+  fptype last = callFunction(evt, indices[numParameters-1], indices); 
+  ret += (1 - totalWeight) * last * cudaArray[indices[numParameters]]; 
   
   return ret; 
 }
@@ -34,10 +37,13 @@ EXEC_TARGET fptype device_EventWeightedAddPdfsExt (fptype* evt, fptype* p, unsig
     idx[0] = indices[2*i + 1];
     idx[1] = indices[2*(i + 1)];
     idx[2] = indices[2 + numParameters + i];
-    fptype curr = callFunction(evt, idx[0], idx[1]); 
+
+    *indices += numParameters;
+
+    fptype curr = callFunction(evt, idx[0], indices); 
     //if ((0 == BLOCKIDX) && (THREADIDX < 5) && (isnan(curr))) printf("NaN component %i %i\n", i, THREADIDX); 
     fptype weight = evt[idx[2]];
-    ret += weight * curr * normalisationFactors[idx[1]]; 
+    ret += weight * curr * cudaArray[idx[1]]; 
     totalWeight += weight; 
 
     //if ((gpuDebug & 1) && (0 == THREADIDX))

@@ -159,9 +159,6 @@ __host__ void PdfBase::setNumPerTask (PdfBase *p, const int &c)
     return;
 
   m_iEventsPerTask = c;
-
-  //for (int i = 0; i < p->components.size (); i++)
-  //  setDisplacements(p->components[i], c);
 }
 
  

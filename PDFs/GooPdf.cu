@@ -9,10 +9,13 @@
 // would be in PdfBase. 
 
 // Device-side, translation-unit constrained. 
+//(brad) note we are storing all types of constants into this array.  
 MEM_CONSTANT fptype cudaArray[maxParams];           // Holds device-side fit parameters. 
-MEM_CONSTANT unsigned int paramIndices[maxParams];  // Holds functor-specific indices into cudaArray. Also overloaded to hold integer constants (ie parameters that cannot vary.) 
-MEM_CONSTANT fptype functorConstants[maxParams];    // Holds non-integer constants. Notice that first entry is number of events. 
-MEM_CONSTANT fptype normalisationFactors[maxParams]; 
+
+//(brad) keep these here for compile reasons, but should be moved to only under cudaArray
+//MEM_CONSTANT unsigned int paramIndices[maxParams];  // Holds functor-specific indices into cudaArray. Also overloaded to hold integer constants (ie parameters that cannot vary.) 
+//MEM_CONSTANT fptype functorConstants[maxParams];    // Holds non-integer constants. Notice that first entry is number of events. 
+//MEM_CONSTANT fptype normalisationFactors[maxParams]; 
 
 // For debugging 
 MEM_CONSTANT int callnumber; 
@@ -88,23 +91,24 @@ EXEC_TARGET fptype calculateEval (fptype rawPdf, fptype* evtVal, unsigned int pa
 
 EXEC_TARGET fptype calculateNLL (fptype rawPdf, fptype* evtVal, unsigned int par) {
   //if ((10 > callnumber) && (THREADIDX < 10) && (BLOCKIDX == 0)) cuPrintf("calculateNll %i %f %f %f\n", callnumber, rawPdf, normalisationFactors[par], rawPdf*normalisationFactors[par]);
-  //if (THREADIDX < 50) printf("Thread %i %f %f\n", THREADIDX, rawPdf, normalisationFactors[par]); 
-  rawPdf *= normalisationFactors[par];
+  //if (THREADIDX < 50)
+  //printf("Thread %i %f %f\n", THREADIDX, rawPdf, cudaArray[par]); 
+  rawPdf *= cudaArray[par];
   return rawPdf > 0 ? -LOG(rawPdf) : 0; 
 }
 
 EXEC_TARGET fptype calculateProb (fptype rawPdf, fptype* evtVal, unsigned int par) {
   // Return probability, ie normalised PDF value.
-  return rawPdf * normalisationFactors[par];
+  return rawPdf * cudaArray[par];
 }
 
 EXEC_TARGET fptype calculateBinAvg (fptype rawPdf, fptype* evtVal, unsigned int par) {
-  rawPdf *= normalisationFactors[par];
+  rawPdf *= cudaArray[par];
   rawPdf *= evtVal[1]; // Bin volume 
   // Log-likelihood of numEvents with expectation of exp is (-exp + numEvents*ln(exp) - ln(numEvents!)). 
   // The last is constant, so we drop it; and then multiply by minus one to get the negative log-likelihood. 
   if (rawPdf > 0) {
-    fptype expEvents = functorConstants[0]*rawPdf;
+    fptype expEvents = cudaArray[0]*rawPdf;
     return (expEvents - evtVal[0]*log(expEvents)); 
   }
   return 0; 
@@ -122,10 +126,10 @@ EXEC_TARGET fptype calculateBinWithError (fptype rawPdf, fptype* evtVal, unsigne
 }
 
 EXEC_TARGET fptype calculateChisq (fptype rawPdf, fptype* evtVal, unsigned int par) {
-  rawPdf *= normalisationFactors[par];
+  rawPdf *= cudaArray[par];
   rawPdf *= evtVal[1]; // Bin volume 
 
-  return pow(rawPdf * functorConstants[0] - evtVal[0], 2) / (evtVal[0] > 1 ? evtVal[0] : 1); 
+  return pow(rawPdf *cudaArray[0] - evtVal[0], 2) / (evtVal[0] > 1 ? evtVal[0] : 1); 
 }
 
 MEM_DEVICE device_metric_ptr ptr_to_Eval         = calculateEval; 
@@ -234,7 +238,9 @@ __host__ double GooPdf::sumOfNll (int numVars) const {
 }
 
 __host__ double GooPdf::calculateNLL () const {
-  //if (cpuDebug & 1) std::cout << getName() << " entering calculateNLL (" << host_callnumber << ")" << std::endl; 
+  //if (cpuDebug & 1)
+  //std::cout << getName() << " entering calculateNLL (" << host_callnumber << ")" << std::endl; 
+  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice);
 
   //MEMCPY_TO_SYMBOL(callnumber, &host_callnumber, sizeof(int)); 
   //int oldMask = cpuDebug; 
@@ -247,15 +253,17 @@ __host__ double GooPdf::calculateNLL () const {
   
   //if (cpuDebug & 1) {
   //std::cout << "Norm factors: ";
-  //for (int i = 0; i < totalParams; ++i) std::cout << host_normalisation[i] << " ";
+  //for (int i = 0; i < totalParams; ++i) std::cout << host_params[i] << " ";
   //std::cout << std::endl;
   //} 
    
-  if (host_normalisation[parameters] <= 0) 
+  if (host_params[normalisationIdx] <= 0) 
     abortWithCudaPrintFlush(__FILE__, __LINE__, getName() + " non-positive normalisation", this);
 
-  MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
-  SYNCH(); // Ensure normalisation integrals are finished
+  //MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //SYNCH(); // Ensure normalisation integrals are finished
+
+  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice);
 
   int numVars = observables.size(); 
   if (fitControl->binnedFit()) {
@@ -282,7 +290,7 @@ __host__ void GooPdf::evaluateAtPoints (Variable* var, std::vector<fptype>& res)
 
   copyParams(); 
   normalise(); 
-  MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
   UnbinnedDataSet tempdata(observables);
 
   double step = (var->upperlimit - var->lowerlimit) / var->numbins; 
@@ -313,7 +321,7 @@ __host__ void GooPdf::evaluateAtPoints (Variable* var, std::vector<fptype>& res)
   res.clear();
   res.resize(var->numbins);
   for (int i = 0; i < var->numbins; ++i) {
-    res[i] = h_results[i] * host_normalisation[parameters];
+    res[i] = h_results[i] * host_params[normalisationIdx];
   }
 }
 
@@ -369,7 +377,7 @@ __host__ fptype GooPdf::getValue () {
   // Execute redundantly in all threads for OpenMP multiGPU case
   copyParams(); 
   normalise(); 
-  MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 
   UnbinnedDataSet point(observables); 
   point.addEvent(); 
@@ -389,21 +397,23 @@ __host__ fptype GooPdf::getValue () {
 }
 
 __host__ fptype GooPdf::normalise () const {
-  //if (cpuDebug & 1) std::cout << "Normalising " << getName() << " " << hasAnalyticIntegral() << " " << normRanges << std::endl;
+  //std::cout << "Normalising " << getName() << " has Analytical Integral " << hasAnalyticIntegral() << " normalisation index " << normalisationIdx << std::endl;
 
   if (!fitControl->metricIsPdf()) {
-    host_normalisation[parameters] = 1.0; 
+    //host_normalisation[parameters] = 1.0; 
+    host_params[normalisationIdx] = 1.0; 
     return 1.0;
   }
 
   fptype ret = 1;
   if (hasAnalyticIntegral()) {
     for (obsConstIter v = obsCBegin(); v != obsCEnd(); ++v) { // Loop goes only over observables of this PDF. 
-      //if (cpuDebug & 1) std::cout << "Analytically integrating " << getName() << " over " << (*v)->name << std::endl; 
+      //std::cout << "Analytically integrating " << getName() << " over " << (*v)->name << std::endl; 
       ret *= integrate((*v)->lowerlimit, (*v)->upperlimit);
     }
-    host_normalisation[parameters] = 1.0/ret;
-    //if (cpuDebug & 1) std::cout << "Analytic integral of " << getName() << " is " << ret << std::endl; 
+    //host_normalisation[parameters] = 1.0/ret;
+    host_params[normalisationIdx] = 1.0/ret;
+    //std::cout << "Analytic integral of " << getName() << " is " << ret << std::endl; 
     return ret; 
   } 
 
@@ -411,18 +421,20 @@ __host__ fptype GooPdf::normalise () const {
   for (obsConstIter v = obsCBegin(); v != obsCEnd(); ++v) {
     ret *= ((*v)->upperlimit - (*v)->lowerlimit);
     totalBins *= (integrationBins > 0 ? integrationBins : (*v)->numbins); 
-    //if (cpuDebug & 1) std::cout << "Total bins " << totalBins << " due to " << (*v)->name << " " << integrationBins << " " << (*v)->numbins << std::endl; 
+    //std::cout << "Total bins " << totalBins << " due to " << (*v)->name << " " << integrationBins << " " << (*v)->numbins << std::endl; 
   }
   ret /= totalBins; 
 
   fptype dummy = 0; 
   static thrust::plus<fptype> cudaPlus;
-  thrust::constant_iterator<fptype*> arrayAddress(normRanges); 
+  thrust::constant_iterator<fptype*> arrayAddress(&(cudaArray[normalisationIdx + 1]));
   thrust::constant_iterator<int> eventSize(observables.size());
   thrust::counting_iterator<int> binIndex(0); 
   fptype sum = thrust::transform_reduce(thrust::make_zip_iterator(thrust::make_tuple(binIndex, eventSize, arrayAddress)),
 					thrust::make_zip_iterator(thrust::make_tuple(binIndex + totalBins, eventSize, arrayAddress)),
 					*logger, dummy, cudaPlus); 
+
+  //std::cout << "normalise sum: " << sum << std::endl;
 
   if (std::isnan(sum)) {
     abortWithCudaPrintFlush(__FILE__, __LINE__, getName() + " NaN in normalisation", this); 
@@ -430,9 +442,12 @@ __host__ fptype GooPdf::normalise () const {
   else if (0 >= sum) { 
     abortWithCudaPrintFlush(__FILE__, __LINE__, "Non-positive normalisation", this); 
   }
+
   ret *= sum;
+
   if (0 == ret) abortWithCudaPrintFlush(__FILE__, __LINE__, "Zero integral"); 
-  host_normalisation[parameters] = 1.0/ret;
+  //host_normalisation[parameters] = 1.0/ret;
+  host_params[normalisationIdx] = 1.0/ret;
 
   return (fptype) ret; 
 }
@@ -452,8 +467,8 @@ EXEC_TARGET fptype callFunction (fptype* eventAddress, unsigned int functionIdx,
   return ret; 
 }
 #else 
-EXEC_TARGET fptype callFunction (fptype* eventAddress, unsigned int functionIdx, unsigned int paramIdx) {
-  return (*(reinterpret_cast<device_function_ptr>(device_function_table[functionIdx])))(eventAddress, cudaArray, paramIndices + paramIdx);
+EXEC_TARGET fptype callFunction (fptype* eventAddress, unsigned int functionIdx, unsigned int *paramIdx) {
+  return (*(reinterpret_cast<device_function_ptr>(device_function_table[functionIdx])))(eventAddress, cudaArray, paramIdx);
 }
 #endif 
 
@@ -470,13 +485,21 @@ EXEC_TARGET fptype MetricTaker::operator () (thrust::tuple<int, fptype*, int> t)
   fptype* eventAddress = thrust::get<1>(t) + (eventIndex * abs(eventSize)); 
 
   // Causes stack size to be statically undeterminable.
-  fptype ret = callFunction(eventAddress, functionIdx, parameters);
+  unsigned int paramIdx = 0;
+  fptype ret = callFunction(eventAddress, functionIdx, &paramIdx);
+
+  int params = cudaArray[0];
+  int observ = cudaArray[params + 1];
+  int consta = cudaArray[params + 1 + observ + 1];
+  int normal = cudaArray[params + 1 + observ + 1 + consta + 1];
+
+  int normalIdx = params + observ + consta + normal;
 
   // Notice assumption here! For unbinned fits the 'eventAddress' pointer won't be used
   // in the metric, so it doesn't matter what it is. For binned fits it is assumed that
   // the structure of the event is (obs1 obs2... binentry binvolume), so that the array
   // passed to the metric consists of (binentry binvolume). 
-  ret = (*(reinterpret_cast<device_metric_ptr>(device_function_table[metricIndex])))(ret, eventAddress + (abs(eventSize)-2), parameters);
+  ret = (*(reinterpret_cast<device_metric_ptr>(device_function_table[metricIndex])))(ret, eventAddress + (abs(eventSize)-2), normalIdx);
   return ret; 
 }
  
@@ -488,7 +511,15 @@ EXEC_TARGET fptype MetricTaker::operator () (thrust::tuple<int, int, fptype*> t)
  
   int evtSize = thrust::get<1>(t);
   int binNumber = thrust::get<0>(t);
-  
+
+  int params = cudaArray[0];
+  int observ = cudaArray[params + 1];
+  int consta = cudaArray[params + 1 + observ + 1];
+  int normal = cudaArray[params + 1 + observ + 1 + consta + 1];
+
+  int normalIdx = params + observ + consta + normal + 1;
+  //printf ("number of normalisation factors: %i\n", normalIdx);
+
   // Do not understand why this cannot be declared __shared__. Dynamically allocating shared memory is apparently complicated. 
   //fptype* binCenters = (fptype*) malloc(evtSize * sizeof(fptype));
   MEM_SHARED fptype binCenters[1024*MAX_NUM_OBSERVABLES];
@@ -496,23 +527,32 @@ EXEC_TARGET fptype MetricTaker::operator () (thrust::tuple<int, int, fptype*> t)
   // To convert global bin number to (x,y,z...) coordinates: For each dimension, take the mod 
   // with the number of bins in that dimension. Then divide by the number of bins, in effect
   // collapsing so the grid has one fewer dimension. Rinse and repeat. 
-  unsigned int* indices = paramIndices + parameters;
   for (int i = 0; i < evtSize; ++i) {
-    fptype lowerBound = thrust::get<2>(t)[3*i+0];
-    fptype upperBound = thrust::get<2>(t)[3*i+1];
-    int numBins    = (int) FLOOR(thrust::get<2>(t)[3*i+2] + 0.5); 
+    //fptype lowerBound = thrust::get<2>(t)[3*i+0];
+    fptype lowerBound = cudaArray[normalIdx];
+    //fptype upperBound = thrust::get<2>(t)[3*i+1];
+    fptype upperBound = cudaArray[normalIdx + 1];
+    //int numBins    = (int) FLOOR(thrust::get<2>(t)[3*i+2] + 0.5); 
+    int numBins    = (int) FLOOR(cudaArray[normalIdx + 2] + 0.5); 
     int localBin = binNumber % numBins;
+
+    //printf ("lower:%f upper:%f numBins:%i\n", lowerBound, upperBound, numBins);
 
     fptype x = upperBound - lowerBound; 
     x /= numBins;
     x *= (localBin + 0.5); 
     x += lowerBound;
-    binCenters[indices[indices[0] + 2 + i]+THREADIDX*MAX_NUM_OBSERVABLES] = x; 
+    //This needs to be # of observables, not just i
+    //if (THREADIDX*MAX_NUM_OBSERVABLES + i > 1024*5)
+    //printf ("thread:%i i:%i\n", THREADIDX, i);
+    binCenters[THREADIDX*MAX_NUM_OBSERVABLES + i] = x; 
     binNumber /= numBins;
   }
 
+  unsigned int parameterIdx = 0;
+
   // Causes stack size to be statically undeterminable.
-  fptype ret = callFunction(binCenters+THREADIDX*MAX_NUM_OBSERVABLES, functionIdx, parameters); 
+  fptype ret = callFunction(binCenters+THREADIDX*MAX_NUM_OBSERVABLES, functionIdx, &parameterIdx); 
   return ret; 
 }
 
@@ -522,7 +562,7 @@ __host__ void GooPdf::getCompProbsAtDataPoints (std::vector<std::vector<fptype> 
   copyParams(); 
   double overall = normalise();
   std::cout << "normalize () - " << overall << std::endl;
-  MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 
   int numVars = observables.size(); 
   if (fitControl->binnedFit()) {

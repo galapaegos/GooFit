@@ -18,13 +18,13 @@ typedef thrust::constant_iterator<int> SizeIterator;
 typedef thrust::tuple<IndexIterator, DataIterator, SizeIterator> EventTuple; 
 typedef thrust::zip_iterator<EventTuple> EventIterator; 
 
-const int maxParams = 2000; 
+const int maxParams = 4000; 
 extern fptype* dev_event_array;
 extern fptype host_normalisation[maxParams];
 extern fptype host_params[maxParams];
 extern unsigned int host_indices[maxParams]; 
 extern int totalParams; 
-extern int totalConstants;
+//extern int totalConstants;
 
 class PdfBase {
 
@@ -37,6 +37,8 @@ public:
   __host__ virtual fptype normalise () const = 0;
   __host__ void initialiseIndices (std::vector<unsigned int> pindices); 
 
+  __host__ void populateCudaArray (const int &params, const int &observables, const int &constants, const int &norms);
+
   typedef std::vector<Variable*> obsCont;
   typedef obsCont::iterator obsIter;
   typedef obsCont::const_iterator obsConstIter;
@@ -47,7 +49,7 @@ public:
   __host__ void addSpecialMask (int m) {specialMask |= m;}
   __host__ void copyParams (const std::vector<double>& pars) const;
   __host__ void copyParams (); 
-  __host__ void copyNormFactors () const;
+  //__host__ void copyNormFactors () const;
   __host__ void generateNormRange (); 
   __host__ std::string getName () const {return name;} 
   __host__ virtual void getObservables (obsCont& ret) const; 
@@ -86,8 +88,17 @@ protected:
   fptype* normRanges;       // This is specific to functor instead of variable so that MetricTaker::operator needn't use indices. 
   unsigned int parameters;  // Stores index, in 'paramIndices', where this functor's information begins. 
   unsigned int cIndex;      // Stores location of constants. 
-  obsCont observables; 
-  parCont parameterList; 
+  //(brad) rewriting to make more sense to me.  
+  //obsCont observables; 
+  std::vector<Variable*> observables;
+  unsigned int observablesIdx;
+  //parCont parameterList; 
+  std::vector<Variable*> parameterList;
+  unsigned int parametersIdx;
+  std::vector<fptype> constants;
+  unsigned int constantsIdx;
+  unsigned int normalisationIdx;
+
   FitControl* fitControl; 
   std::vector<PdfBase*> components;
   int integrationBins; 

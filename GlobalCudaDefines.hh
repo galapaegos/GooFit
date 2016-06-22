@@ -84,6 +84,11 @@ typedef double fptype;
 #define MODF modf
 #define SIN sin
 #define SQRT sqrt
+#ifndef TARGET_OMP
+#define RSQRT rsqrt
+#else
+#define RSQRT 1.0/SQRT
+#endif
 #define FLOOR floor
 #define POW pow
 #else 
@@ -107,6 +112,11 @@ typedef float fptype;
 #define MODF modff
 #define SIN sinf
 #define SQRT sqrtf
+#ifndef TARGET_OMP
+#define RSQRT rsqrtf
+#else
+#define RSQRT 1.0/SQRT
+#endif
 #define FLOOR floorf 
 #define POW powf
 #endif 

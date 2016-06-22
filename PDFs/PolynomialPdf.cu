@@ -3,14 +3,17 @@
 EXEC_TARGET fptype device_Polynomial (fptype* evt, fptype* p, unsigned int* indices) {
   // Structure is nP lowestdegree c1 c2 c3 nO o1
 
-  int numParams = indices[0]+1; 
-  int lowestDegree = indices[1]; 
+  int numParams = cudaArray[*indices + 0]; 
+  int lowestDegree = cudaArray[*indices + 1]; 
 
-  fptype x = evt[indices[2 + indices[0]]]; 
+  fptype x = evt[0];//indices[2 + indices[0]]]; 
   fptype ret = 0; 
-  for (int i = 2; i < numParams; ++i) {
-    ret += p[indices[i]] * POW(x, lowestDegree + i - 2); 
+  for (int i = 2; i < numParams; ++i)
+  {
+    ret += cudaArray[*indices + i + 1] * POW(x, lowestDegree + i - 2); 
   }
+
+  *indices += 7;
 
   return ret; 
 }

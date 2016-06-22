@@ -35,8 +35,8 @@ EXEC_TARGET fptype device_KinLimitBW (fptype* evt, fptype* p, unsigned int* indi
 
   fptype mean  = p[idx[1]];
   fptype width = p[idx[2]];
-  fptype d0mass = functorConstants[idx[3]+0]; 
-  fptype pimass = functorConstants[idx[3]+1]; 
+  fptype d0mass = cudaArray[idx[3]+0]; 
+  fptype pimass = cudaArray[idx[3]+1]; 
   fptype x = evt[idx[4]]; 
 
   mean += d0mass;
@@ -90,5 +90,5 @@ __host__ void KinLimitBWPdf::setMasses (fptype bigM, fptype smallM) {
   fptype constants[2];
   constants[0] = bigM;
   constants[1] = smallM;
-  MEMCPY_TO_SYMBOL(functorConstants, constants, 2*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(functorConstants, constants, 2*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice); 
 }

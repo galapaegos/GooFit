@@ -1,19 +1,22 @@
 #include "AddPdf.hh"
 
 EXEC_TARGET fptype device_AddPdfs (fptype* evt, fptype* p, unsigned int* indices) { 
-  int numParameters = indices[0]; 
+  int numParameters = cudaArray[*indices]; 
   fptype ret = 0;
   fptype totalWeight = 0; 
   for (int i = 1; i < numParameters-3; i += 3) {
     int idx[3];
-    idx[0] = indices[i];
-    idx[1] = indices[i + 1];
-    idx[2] = indices[i + 2];
-    fptype pidx = p[idx[2]];
-    fptype norm = normalisationFactors[idx[1]];
+    idx[0] = cudaArray[*indices + i + 1];
+    idx[1] = cudaArray[*indices + i + 2];
+    idx[2] = cudaArray[*indices + i + 3];
+    fptype pidx = cudaArray[*indices + 1];
+    fptype norm = cudaArray[*indices + 6];
+
+    // 8 at least?
+    *indices += 7;
 
     totalWeight += pidx;
-    fptype curr = callFunction(evt, idx[0], idx[1]); 
+    fptype curr = callFunction(evt, idx[0], indices); 
     fptype weight = pidx;
     ret += weight * curr * norm; 
 
@@ -30,8 +33,8 @@ EXEC_TARGET fptype device_AddPdfs (fptype* evt, fptype* p, unsigned int* indices
   // nP | F P w | F P
   // in which nP = 5. Therefore the parameter index for the last function pointer is nP, and the function index is nP-1. 
   //fptype last = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[numParameters-1]])))(evt, p, paramIndices + indices[numParameters]);
-  fptype last = callFunction(evt, tidx[1], tidx[0]);
-  ret += (1 - totalWeight) * last * normalisationFactors[tidx[0]]; 
+  fptype last = callFunction(evt, tidx[1], indices);
+  ret += (1 - totalWeight) * last * cudaArray[tidx[0]]; 
 
   //if ((THREADIDX < 50) && (isnan(ret))) printf("NaN final component %f %f\n", last, totalWeight); 
 
@@ -51,10 +54,11 @@ EXEC_TARGET fptype device_AddPdfsExt (fptype* evt, fptype* p, unsigned int* indi
   fptype ret = 0;
   fptype totalWeight = 0; 
   for (int i = 1; i < numParameters; i += 3) {    
+    *indices += 3;
     //fptype curr = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[i]])))(evt, p, paramIndices + indices[i+1]);
-    fptype curr = callFunction(evt, indices[i], indices[i+1]); 
+    fptype curr = callFunction(evt, indices[i], indices); 
     fptype weight = p[indices[i+2]];
-    ret += weight * curr * normalisationFactors[indices[i+1]]; 
+    ret += weight * curr * cudaArray[indices[i+1]]; 
 
     totalWeight += weight; 
     //if ((gpuDebug & 1) && (THREADIDX == 0) && (0 == BLOCKIDX)) 

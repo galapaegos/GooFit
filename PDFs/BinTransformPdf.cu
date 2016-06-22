@@ -8,8 +8,8 @@ EXEC_TARGET fptype device_BinTransform (fptype* evt, fptype* p, unsigned int* in
   //printf("[%i, %i] Bin Transform: %i %i %f %f\n", THREADIDX, BLOCKIDX, numObservables, previousSize, evt[0], evt[1]); 
   for (int i = 0; i < numObservables; ++i) {
     fptype obsValue   = evt[indices[2 + indices[0] + i]];
-    fptype lowerLimit = functorConstants[indices[i*3+1]];
-    fptype binSize    = functorConstants[indices[i*3+2]];
+    fptype lowerLimit = cudaArray[indices[i*3+1]];
+    fptype binSize    = cudaArray[indices[i*3+2]];
     int numBins       = indices[i*3+3]; 
 
     int localBin = (int) FLOOR((obsValue - lowerLimit) / binSize);
@@ -40,7 +40,7 @@ __host__ BinTransformPdf::BinTransformPdf (std::string n, vector<Variable*> obse
     host_constants[2*i+1] = binSizes[i]; 
   }
 
-  MEMCPY_TO_SYMBOL(functorConstants, host_constants, 2*obses.size()*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(functorConstants, host_constants, 2*obses.size()*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice); 
   delete[] host_constants; 
 
   GET_FUNCTION_ADDR(ptr_to_BinTransform);

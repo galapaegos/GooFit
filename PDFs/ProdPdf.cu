@@ -11,9 +11,11 @@ EXEC_TARGET fptype device_ProdPdfs (fptype* evt, fptype* p, unsigned int* indice
     int fcnIdx = indices[i + 0]; 
     int parIdx = indices[i + 1]; 
 
+    *indices += 2;
+
     //fptype curr = (*(reinterpret_cast<device_function_ptr>(device_function_table[fcnIdx])))(evt, p, paramIndices + parIdx);
-    fptype curr = callFunction(evt, fcnIdx, parIdx); 
-    curr *= normalisationFactors[parIdx]; 
+    fptype curr = callFunction(evt, fcnIdx, indices); 
+    curr *= cudaArray[parIdx]; 
     //if ((isnan(ret)) || (isnan(curr)) || (isnan(normalisationFactors[parIdx])) || (isinf(ret)) || (isinf(curr))) 
     //printf("device_Prod 2: (%f %f %f %f %f) %f %f %f %i %i %i\n", evt[0], evt[1], evt[2], evt[3], evt[4], curr, ret, normalisationFactors[parIdx], i, parIdx, numParams);
     ret *= curr;
@@ -81,7 +83,7 @@ __host__ fptype ProdPdf::normalise () const {
     // Two or more components share an observable and cannot be separately
     // normalised, since \int A*B dx does not equal int A dx * int B dx. 
     recursiveSetNormalisation(fptype(1.0)); 
-    MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+    //MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
     
     // Normalise numerically.
     //std::cout << "Numerical normalisation of " << getName() << " due to varOverlaps.\n"; 
@@ -96,7 +98,7 @@ __host__ fptype ProdPdf::normalise () const {
     (*c)->normalise(); 
   }
   host_normalisation[parameters] = 1; 
-  MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
   
   return 1.0; 
 }

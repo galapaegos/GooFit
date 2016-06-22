@@ -25,10 +25,10 @@ EXEC_TARGET devcomplex<fptype> device_DalitzPlot_calcIntegrals (fptype m12, fpty
   // observed points, that's why it doesn't use 
   // cResonances. No need to cache the values at individual
   // grid points - we only care about totals. 
-  fptype motherMass = functorConstants[indices[1] + 0]; 
-  fptype daug1Mass  = functorConstants[indices[1] + 1]; 
-  fptype daug2Mass  = functorConstants[indices[1] + 2]; 
-  fptype daug3Mass  = functorConstants[indices[1] + 3];  
+  fptype motherMass = cudaArray[indices[1] + 0]; 
+  fptype daug1Mass  = cudaArray[indices[1] + 1]; 
+  fptype daug2Mass  = cudaArray[indices[1] + 2]; 
+  fptype daug3Mass  = cudaArray[indices[1] + 3];  
 
   devcomplex<fptype> ret; 
   if (!inDalitz(m12, m13, motherMass, daug1Mass, daug2Mass, daug3Mass)) return ret;
@@ -48,10 +48,10 @@ EXEC_TARGET devcomplex<fptype> device_DalitzPlot_calcIntegrals (fptype m12, fpty
 }
 
 EXEC_TARGET fptype device_DalitzPlot (fptype* evt, fptype* p, unsigned int* indices) {
-  fptype motherMass = functorConstants[indices[1] + 0]; 
-  fptype daug1Mass  = functorConstants[indices[1] + 1]; 
-  fptype daug2Mass  = functorConstants[indices[1] + 2]; 
-  fptype daug3Mass  = functorConstants[indices[1] + 3]; 
+  fptype motherMass = cudaArray[indices[1] + 0]; 
+  fptype daug1Mass  = cudaArray[indices[1] + 1]; 
+  fptype daug2Mass  = cudaArray[indices[1] + 2]; 
+  fptype daug3Mass  = cudaArray[indices[1] + 3]; 
 
   fptype m12 = evt[indices[2 + indices[0]]]; 
   fptype m13 = evt[indices[3 + indices[0]]];
@@ -77,7 +77,7 @@ EXEC_TARGET fptype device_DalitzPlot (fptype* evt, fptype* p, unsigned int* indi
 
   fptype ret = norm2(totalAmp); 
   int effFunctionIdx = parIndexFromResIndex_DP(numResonances); 
-  fptype eff = callFunction(evt, indices[effFunctionIdx], indices[effFunctionIdx + 1]); 
+  fptype eff = callFunction(evt, indices[effFunctionIdx], indices); 
   ret *= eff;
 
   //printf("DalitzPlot evt %i zero: %i %i %f (%f, %f).\n", evtNum, numResonances, effFunctionIdx, eff, totalAmp.real, totalAmp.imag); 
@@ -119,7 +119,7 @@ __host__ DalitzPlotPdf::DalitzPlotPdf (std::string n,
   decayConstants[2] = decayInfo->daug2Mass;
   decayConstants[3] = decayInfo->daug3Mass;
   decayConstants[4] = decayInfo->meson_radius;
-  MEMCPY_TO_SYMBOL(functorConstants, decayConstants, 5*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice);  
+  //MEMCPY_TO_SYMBOL(functorConstants, decayConstants, 5*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice);  
 
   pindices.push_back(decayInfo->resonances.size()); 
   static int cacheCount = 0; 
@@ -190,7 +190,7 @@ __host__ fptype DalitzPlotPdf::normalise () const {
   // so set normalisation factor to 1 so it doesn't get multiplied by zero. 
   // Copy at this time to ensure that the SpecialResonanceCalculators, which need the efficiency, 
   // don't get zeroes through multiplying by the normFactor. 
-  MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 
   int totalBins = _m12->numbins * _m13->numbins;
   if (!dalitzNormRange) {
@@ -316,7 +316,7 @@ EXEC_TARGET devcomplex<fptype> SpecialResonanceIntegrator::operator () (thrust::
   binCenterM13        *= (globalBinNumber + 0.5); 
   binCenterM13        += lowerBoundM13; 
 
-  unsigned int* indices = paramIndices + parameters;   
+  unsigned int* indices = NULL;   
   devcomplex<fptype> ret = device_DalitzPlot_calcIntegrals(binCenterM12, binCenterM13, resonance_i, resonance_j, cudaArray, indices); 
 
   fptype fakeEvt[10]; // Need room for many observables in case m12 or m13 were assigned a high index in an event-weighted fit. 
@@ -324,7 +324,7 @@ EXEC_TARGET devcomplex<fptype> SpecialResonanceIntegrator::operator () (thrust::
   fakeEvt[indices[indices[0] + 2 + 1]] = binCenterM13;
   unsigned int numResonances = indices[2]; 
   int effFunctionIdx = parIndexFromResIndex_DP(numResonances); 
-  fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices[effFunctionIdx + 1]); 
+  fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices); 
 
   // Multiplication by eff, not sqrt(eff), is correct:
   // These complex numbers will not be squared when they
@@ -345,14 +345,14 @@ EXEC_TARGET devcomplex<fptype> SpecialResonanceCalculator::operator () (thrust::
   int evtNum = thrust::get<0>(t); 
   fptype* evt = thrust::get<1>(t) + (evtNum * thrust::get<2>(t)); 
 
-  unsigned int* indices = paramIndices + parameters;   // Jump to DALITZPLOT position within parameters array
+  unsigned int* indices = NULL;   // Jump to DALITZPLOT position within parameters array
   fptype m12 = evt[indices[2 + indices[0]]]; 
   fptype m13 = evt[indices[3 + indices[0]]];
 
-  fptype motherMass = functorConstants[indices[1] + 0]; 
-  fptype daug1Mass  = functorConstants[indices[1] + 1]; 
-  fptype daug2Mass  = functorConstants[indices[1] + 2]; 
-  fptype daug3Mass  = functorConstants[indices[1] + 3];  
+  fptype motherMass = cudaArray[indices[1] + 0]; 
+  fptype daug1Mass  = cudaArray[indices[1] + 1]; 
+  fptype daug2Mass  = cudaArray[indices[1] + 2]; 
+  fptype daug3Mass  = cudaArray[indices[1] + 3];  
   if (!inDalitz(m12, m13, motherMass, daug1Mass, daug2Mass, daug3Mass)) return ret;
   fptype m23 = motherMass*motherMass + daug1Mass*daug1Mass + daug2Mass*daug2Mass + daug3Mass*daug3Mass - m12 - m13; 
 

@@ -37,8 +37,8 @@ EXEC_TARGET fptype device_InterHistogram (fptype* evt, fptype* p, unsigned int* 
     }
 
     int lowerBoundIdx   = 3 + 4*i; 
-    fptype lowerBound   = functorConstants[indices[lowerBoundIdx + 0]];
-    fptype step         = functorConstants[indices[lowerBoundIdx + 1]];
+    fptype lowerBound   = cudaArray[indices[lowerBoundIdx + 0]];
+    fptype step         = cudaArray[indices[lowerBoundIdx + 1]];
 
     currVariable   -= lowerBound;
     currVariable   /= step; 
@@ -155,7 +155,7 @@ __host__ InterHistPdf::InterHistPdf (std::string n,
     host_histogram.push_back(curr);
     totalEvents += curr; 
   }
-  MEMCPY_TO_SYMBOL(functorConstants, host_constants, numConstants*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(functorConstants, host_constants, numConstants*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice); 
 
   dev_base_histogram = new thrust::device_vector<fptype>(host_histogram);  
   static fptype* dev_address[1];

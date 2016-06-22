@@ -1,17 +1,18 @@
 #include "ExpPdf.hh"
 
-EXEC_TARGET fptype device_Exp (fptype* evt, fptype* p, unsigned int* indices) {
-  fptype x = evt[indices[2 + indices[0]]]; 
-  fptype alpha = p[indices[1]];
+EXEC_TARGET fptype device_Exp (fptype* evt, fptype* p, unsigned int* indices)
+{
+  fptype x = evt[0]; 
+  fptype alpha = cudaArray[*indices + 1];
 
   fptype ret = EXP(alpha*x); 
   return ret; 
 }
 
 EXEC_TARGET fptype device_ExpOffset (fptype* evt, fptype* p, unsigned int* indices) {
-  fptype x = evt[indices[2 + indices[0]]]; 
-  x -= p[indices[1]]; 
-  fptype alpha = p[indices[2]];
+  fptype x = evt[0]; 
+  x -= cudaArray[*indices + 1]; 
+  fptype alpha = cudaArray[*indices + 2];
 
   fptype ret = EXP(alpha*x); 
   return ret; 

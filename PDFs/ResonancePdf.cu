@@ -95,11 +95,11 @@ EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsi
   idx[4] = indices[4];
   idx[5] = indices[5];
 
-  fptype motherMass             = functorConstants[idx[1]+0];
-  fptype daug1Mass              = functorConstants[idx[1]+1];
-  fptype daug2Mass              = functorConstants[idx[1]+2];
-  fptype daug3Mass              = functorConstants[idx[1]+3];
-  fptype meson_radius           = functorConstants[idx[1]+4];
+  fptype motherMass             = cudaArray[idx[1]+0];
+  fptype daug1Mass              = cudaArray[idx[1]+1];
+  fptype daug2Mass              = cudaArray[idx[1]+2];
+  fptype daug3Mass              = cudaArray[idx[1]+3];
+  fptype meson_radius           = cudaArray[idx[1]+4];
 
   fptype resmass                = cudaArray[idx[2]];
   fptype reswidth               = cudaArray[idx[3]];
@@ -209,11 +209,11 @@ EXEC_TARGET devcomplex<fptype> gouSak (fptype m12, fptype m13, fptype m23, unsig
   idx[4] = indices[4];
   idx[5] = indices[5];
 
-  fptype motherMass             = functorConstants[idx[1]+0];
-  fptype daug1Mass              = functorConstants[idx[1]+1];
-  fptype daug2Mass              = functorConstants[idx[1]+2];
-  fptype daug3Mass              = functorConstants[idx[1]+3];
-  fptype meson_radius           = functorConstants[idx[1]+4];
+  fptype motherMass             = cudaArray[idx[1]+0];
+  fptype daug1Mass              = cudaArray[idx[1]+1];
+  fptype daug2Mass              = cudaArray[idx[1]+2];
+  fptype daug3Mass              = cudaArray[idx[1]+3];
+  fptype meson_radius           = cudaArray[idx[1]+4];
 
   fptype resmass                = cudaArray[idx[2]];
   fptype reswidth               = cudaArray[idx[3]];
@@ -257,11 +257,11 @@ EXEC_TARGET devcomplex<fptype> lass (fptype m12, fptype m13, fptype m23, unsigne
   idx[4] = indices[4];
   idx[5] = indices[5];
 
-  fptype motherMass             = functorConstants[idx[1]+0];
-  fptype daug1Mass              = functorConstants[idx[1]+1];
-  fptype daug2Mass              = functorConstants[idx[1]+2];
-  fptype daug3Mass              = functorConstants[idx[1]+3];
-  fptype meson_radius           = functorConstants[idx[1]+4];
+  fptype motherMass             = cudaArray[idx[1]+0];
+  fptype daug1Mass              = cudaArray[idx[1]+1];
+  fptype daug2Mass              = cudaArray[idx[1]+2];
+  fptype daug3Mass              = cudaArray[idx[1]+3];
+  fptype meson_radius           = cudaArray[idx[1]+4];
 
   fptype resmass                = cudaArray[idx[2]];
   fptype reswidth               = cudaArray[idx[3]];

@@ -6,11 +6,13 @@ EXEC_TARGET fptype device_Composite (fptype* evt, fptype* p, unsigned int* indic
   unsigned int shellFcnIndex = indices[3];
   unsigned int shellParIndex = indices[4];
 
+  *indices += 5;
+
   // NB, not normalising core function, it is not being used as a PDF. 
   //fptype coreValue = (*(reinterpret_cast<device_function_ptr>(device_function_table[coreFcnIndex])))(evt, cudaArray, paramIndices+coreParIndex);
-  fptype coreValue = callFunction(evt, coreFcnIndex, coreParIndex);
+  fptype coreValue = callFunction(evt, coreFcnIndex, indices);
 
-  unsigned int* shellParams = paramIndices + shellParIndex; 
+  unsigned int* shellParams = indices + shellParIndex; 
   unsigned int numShellPars = shellParams[0];
   unsigned int shellObsIndex = shellParams[2 + numShellPars];
 
@@ -20,7 +22,7 @@ EXEC_TARGET fptype device_Composite (fptype* evt, fptype* p, unsigned int* indic
   // Don't normalise shell either, since we don't know what composite function is being used for. 
   // It may not be a PDF. Normalising at this stage would be presumptuous. 
   //fptype ret = (*(reinterpret_cast<device_function_ptr>(device_function_table[shellFcnIndex])))(fakeEvt, cudaArray, shellParams); 
-  fptype ret = callFunction(fakeEvt, shellFcnIndex, shellParIndex); 
+  fptype ret = callFunction(fakeEvt, shellFcnIndex, indices); 
 
   //if (0 == THREADIDX) 
   //printf("Composite: %f %f %f %f %f %f\n", evt[4], evt[5], evt[6], evt[7], coreValue, ret); 
