@@ -1,6 +1,6 @@
 #include "GaussianPdf.hh"
 
-EXEC_TARGET fptype device_Gaussian (fptype* evt, fptype* p, unsigned int* indices)
+EXEC_TARGET fptype device_Gaussian (fptype* evt, unsigned int* funcIdx, unsigned int* indices)
 {
   fptype x = evt[0];//indices[2 + indices[0]]]; 
   
@@ -9,7 +9,8 @@ EXEC_TARGET fptype device_Gaussian (fptype* evt, fptype* p, unsigned int* indice
 
   fptype ret = EXP(-0.5*(x-mean)*(x-mean)/(sigma*sigma));
 
-  *indices += 7;
+  *indices += 8;
+  *funcIdx += 1;
 
   //if ((0 == THREADIDX) && (0 == BLOCKIDX)) cuPrintf("Gaussian Values %f %i %i %f %f %i\n", x, indices[1], indices[2], mean, sigma, callnumber); 
   //cuPrintf("device_Gaussian %f %i %i %f %f %i %p %f\n", x, indices[1], indices[2], mean, sigma, callnumber, indices, ret); 
@@ -25,19 +26,63 @@ MEM_DEVICE device_function_ptr ptr_to_Gaussian = device_Gaussian;
 __host__ GaussianPdf::GaussianPdf (std::string n, Variable* _x, Variable* mean, Variable* sigma) 
   : GooPdf(_x, n) 
 {
-  printf ("totalParams:%i\n", totalParams);
   std::vector<unsigned int> pindices;
   pindices.push_back(registerParameter(mean));
   pindices.push_back(registerParameter(sigma));
   GET_FUNCTION_ADDR(ptr_to_Gaussian);
   initialise(pindices); 
+
+  m_pSigma = sigma;
 }
 
-__host__ fptype GaussianPdf::integrate (fptype lo, fptype hi) const {
+GaussianPdf::~GaussianPdf ()
+{
+}
+
+__host__ void GaussianPdf::recursiveSetIndices()
+{
+  //(brad): all pdfs need to add themselves to device list so we can increment
+  GET_FUNCTION_ADDR(ptr_to_Gaussian);
+  host_function_table[num_device_functions] = host_fcn_ptr;
+  functionIdx = num_device_functions;
+  num_device_functions ++;
+
+  //(brad): confused by this parameters variable.  Wouldn't each PDF get the current total, not the current amount?
+  //parameters = totalParams;
+  //totalParams += (2 + pindices.size() + observables.size());
+
+  //in order to figure out the next index, we will need to do some additions to get all the proper offsets
+  host_params[totalParams++] = parameterList.size ();
+  parametersIdx = totalParams;
+  for (int i = 0; i < parameterList.size (); i++)
+    host_params[totalParams++] = parameterList[i]->value;
+
+  host_params[totalParams++] = observables.size ();
+  observablesIdx = totalParams;
+  for (int i = 0; i < observables.size (); i++)
+    host_params[totalParams++] = observables[i]->value;
+
+  host_params[totalParams++] = constants.size ();
+  constantsIdx = totalParams;
+  for (int i = 0; i < constants.size (); i++)
+    host_params[totalParams++] = constants[i];
+
+  //normalisation
+  host_params[totalParams++] = 1;
+  normalisationIdx = totalParams;
+  host_params[totalParams++] = 0;
+
+  for (int i = 0; i < components.size (); i++)
+    components[i]->recursiveSetIndices();
+
+  generateNormRange ();
+}
+
+__host__ fptype GaussianPdf::integrate (fptype lo, fptype hi) {
   //static const fptype root2 = sqrt(2.);
   static const fptype rootPi = sqrt(atan2(0.0,-1.0));
   //static const fptype rootPiBy2 = rootPi / root2;
-  
+
   //unsigned int* indices = host_indices+parameters; 
   //fptype xscale = root2*host_params[indices[2]];
 
@@ -58,9 +103,9 @@ __host__ fptype GaussianPdf::integrate (fptype lo, fptype hi) const {
   // Integral over all R. 
 
   //we aren't populating host_params, so grab the parameter from the vec
-  Variable *vSigma = getParameterByName ("sigma");
+  fptype sigma = m_pSigma->value + m_pSigma->blind;
+
   //fptype sigma = host_params[indices[2]];
-  fptype sigma = vSigma->mixValue;
   sigma *= root2*rootPi;
   return sigma; 
 }

@@ -20,9 +20,10 @@
 
 EXEC_TARGET int dev_powi (int base, int exp); // Implemented in SmoothHistogramPdf.
 
-#define CALLS_TO_PRINT 10 
-typedef fptype (*device_function_ptr) (fptype*, fptype*, unsigned int*);            // Pass event, parameters, index into parameters. 
-typedef fptype (*device_metric_ptr) (fptype, fptype*, unsigned int); 
+#define CALLS_TO_PRINT 10
+//pass event, function, parameters.  each need to be incremented accordingly based on PDF 
+typedef fptype (*device_function_ptr) (fptype*, unsigned int*, unsigned int*);            // Pass event, parameters, index into parameters. 
+typedef fptype (*device_metric_ptr) (fptype, fptype*, unsigned int*); 
 
 extern void* host_fcn_ptr;
 
@@ -32,11 +33,12 @@ class GooPdf : public PdfBase {
 public:
 
   GooPdf (Variable* x, std::string n);
-  __host__ virtual double calculateNLL () const;
+  virtual ~GooPdf ();
+  __host__ virtual double calculateNLL ();
   __host__ void evaluateAtPoints (std::vector<fptype>& points) const; 
   __host__ void evaluateAtPoints (Variable* var, std::vector<fptype>& res); 
-  __host__ virtual fptype normalise () const;
-  __host__ virtual fptype integrate (fptype lo, fptype hi) const {return 0;}
+  __host__ virtual fptype normalise ();
+  __host__ virtual fptype integrate (fptype lo, fptype hi) {return 0;}
   __host__ virtual bool hasAnalyticIntegral () const {return false;} 
   __host__ fptype getValue (); 
   __host__ void getCompProbsAtDataPoints (std::vector<std::vector<fptype> >& values);
@@ -45,6 +47,8 @@ public:
   __host__ virtual void setFitControl (FitControl* const fc, bool takeOwnerShip = true);
   __host__ virtual void setMetrics (); 
   __host__ void setParameterConstantness (bool constant = true);
+
+  __host__ virtual void setIndices();
 
   __host__ virtual void transformGrid (fptype* host_output); 
   static __host__ int findFunctionIdx (void* dev_functionPtr); 
@@ -68,7 +72,7 @@ public:
 private:
 
   unsigned int metricIndex; // Function-pointer index of processing function, eg logarithm, chi-square, other metric. 
-  unsigned int functionIdx; // Function-pointer index of actual PDF
+  //unsigned int functionIdx; // Function-pointer index of actual PDF
   unsigned int parameters;
 
 

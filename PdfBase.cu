@@ -48,15 +48,39 @@ __host__ void PdfBase::copyParams (const std::vector<double>& pars) const {
 }
 #endif
 
-__host__ void PdfBase::copyParams () {
+__host__ void PdfBase::copy (std::vector<Variable*> vars)
+{
+  copyParams (vars);
+  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+}
+
+__host__ void PdfBase::copyParams (std::vector<Variable*> vars) {
   //(brad) copy all values into host_params to be transfered
   //note these are indexed the way they are passed.
   // Copies values of Variable objects
 
-  for (int i = 0; i < parameterList.size (); i++)
-    host_params[parametersIdx + i] = parameterList[i]->mixValue;
+  //copy from vars to our local copy, should be able to remove this at some point(?)
+  for (int x = 0; x < vars.size (); x++)
+  {
+    for (int y = 0; y < parameterList.size (); y++)
+    {
+      if (parameterList[y]->name == vars[x]->name)
+      {
+        parameterList[y]->value = vars[x]->value;
+        parameterList[y]->blind = vars[x]->blind;
+      }
+    }
+  }
 
-  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  for (int i = 0; i < parameterList.size (); i++)
+  {
+    host_params[parametersIdx + i] = parameterList[i]->value + parameterList[i]->blind;
+    //printf ("param[%i]:%f\n", i,parameterList[i]->value + parameterList[i]->blind); 
+  }
+
+  //recurse
+  for (int i = 0; i < components.size (); i++)
+    components[i]->copyParams(vars);
 
   //parCont pars; 
   //getParameters(pars); 
@@ -83,8 +107,6 @@ __host__ void PdfBase::initialiseIndices (std::vector<unsigned int> pindices) {
   // This is to allow index sharing between PDFs - all the PDFs must be constructed 
   // before we know what observables exist. 
 
-  printf ("totalParams:%i\n", totalParams);
-
   //(brad) note we are changing how these are storing:
   if (totalParams + pindices.size() >= maxParams) {
     std::cout << "Major problem with pindices size: " << totalParams << " + " << pindices.size() << " >= " << maxParams << std::endl; 
@@ -94,7 +116,55 @@ __host__ void PdfBase::initialiseIndices (std::vector<unsigned int> pindices) {
   //parameters = totalParams;
   //totalParams += (2 + pindices.size() + observables.size()); 
 
+  //(brad): First we must pad out how many indices we need.
+
   //in order to figure out the next index, we will need to do some additions to get all the proper offsets
+  host_params[totalParams++] = parameterList.size ();
+  parametersIdx = totalParams;
+  for (int i = 0; i < pindices.size (); i++)
+    host_params[totalParams++] = 0;
+
+  host_params[totalParams++] = observables.size ();
+  observablesIdx = totalParams;
+  for (int i = 0; i < observables.size (); i++)
+    host_params[totalParams++] = observables[i]->value;
+
+  host_params[totalParams++] = constants.size ();
+  constantsIdx = totalParams;
+  for (int i = 0; i < constants.size (); i++)
+    host_params[totalParams++] = constants[i];
+
+  //normalisation
+  host_params[totalParams++] = 1;
+  normalisationIdx = totalParams;
+  host_params[totalParams++] = 0;
+
+  std::cout << "pindices: " << pindices.size () << " + observables: " << observables.size () << std::endl;
+  std::cout << "host_params after " << getName() << " initialisation: (" << totalParams << ") ";
+  for (int i = parametersIdx - 1; i < totalParams; ++i) {
+    std::cout << host_params[i] << " ";
+  }
+
+  std::cout << std::endl;
+  
+  std::cout << " | " 
+	    << "parameters: " << host_params[parametersIdx - 1] << " " 
+	    << "observables: " << host_params[observablesIdx - 1] << " " 
+	    << "constants: " << host_params[constantsIdx - 1] << " " 
+	    << "normalisation: " << host_params[normalisationIdx - 1] << " " 
+	    << std::endl; 
+
+  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+}
+
+__host__ void PdfBase::recursiveSetIndices ()
+{
+  //special cases will need to overload this function (AddPdf)
+
+  //(brad): Each call needs to set the indices into the array.  In otherwords, each function needs to 'pre-load' 
+  //all parameters.  This means that each function will need to read all their variables/parameters they will use
+  //before calling any other functions.
+  /*
   host_params[totalParams++] = parameterList.size ();
   parametersIdx = totalParams;
   for (int i = 0; i < parameterList.size (); i++)
@@ -115,45 +185,19 @@ __host__ void PdfBase::initialiseIndices (std::vector<unsigned int> pindices) {
   normalisationIdx = totalParams;
   host_params[totalParams++] = 0;
 
-  for (int i = 0; i < observables.size ()*3; i++)
+  for (int i = 0; i < observables.size ()*3; i += 3)
   {
     host_params[totalParams++] = 0;
     host_params[totalParams++] = 0;
     host_params[totalParams++] = 0;
   }
+  */
 
-  std::cout << "pindices: " << pindices.size () << " + observables: " << observables.size () << std::endl;
-  std::cout << "host_params after " << getName() << " initialisation: (" << totalParams << ") ";
-  for (int i = parametersIdx - 1; i < totalParams; ++i) {
-    std::cout << host_params[i] << " ";
-  }
-
-  std::cout << std::endl;
-  
-  std::cout << " | " 
-	    << "parameters: " << host_params[parametersIdx - 1] << " " 
-	    << "observables: " << host_params[observablesIdx - 1] << " " 
-	    << "constants: " << host_params[constantsIdx - 1] << " " 
-	    << "normalisation: " << host_params[normalisationIdx - 1] << " " 
-	    << std::endl; 
-
-  printf ("totalParams:%i\n", totalParams);
-  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
-}
-
-__host__ void PdfBase::recursiveSetIndices () {
-  for (unsigned int i = 0; i < components.size(); ++i) {
+  //(brad): this is overloaded such that each PDF will have its own implementation of recursiveSetIndices
+  for (unsigned int i = 0; i < components.size(); ++i)
     components[i]->recursiveSetIndices(); 
-  }
 
-  int numParams = host_indices[parameters]; 
-  int counter = 0; 
-  for (obsIter v = obsBegin(); v != obsEnd(); ++v) {
-    host_indices[parameters + 2 + numParams + counter] = (*v)->index; 
-    //std::cout << getName() << " set index of " << (*v)->name << " to " << (*v)->index << " " << (parameters + 2 + numParams + counter) << std::endl; 
-    counter++; 
-  }  
-  generateNormRange(); 
+  generateNormRange ();
 }
 
 __host__ void PdfBase::setIndices () {
@@ -161,8 +205,17 @@ __host__ void PdfBase::setIndices () {
   for (obsIter v = obsBegin(); v != obsEnd(); ++v) {
     (*v)->index = counter++; 
   }
+
+  int test = totalParams;
+
+  //recalculate our indices here, reset:
+  totalParams = 0;
+  num_device_functions = 0;
+
   recursiveSetIndices(); 
-  //MEMCPY_TO_SYMBOL(paramIndices, host_indices, totalParams*sizeof(unsigned int), 0, cudaMemcpyHostToDevice); 
+
+  MEMCPY_TO_SYMBOL(device_function_table, host_function_table, num_device_functions*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 }
 
 __host__ void PdfBase::setData (UnbinnedDataSet* data)
@@ -202,7 +255,8 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
     displacements[i] = displacements[i - 1] + counts[i - 1];
 #endif
 
-  fptype* host_array = new fptype[numEntries*dimensions];
+  //fptype *host_array = new fptype[numEntries*dimensions];
+  fptype *host_array = (fptype*)malloc (numEntries*dimensions*sizeof(fptype));
 
 #ifdef TARGET_MPI
   //This is an array to track if we need to redo indexing
@@ -267,9 +321,11 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
   delete [] counts;
   delete [] displacements;
 #else
-  gooMalloc((void**) &dev_event_array, dimensions*numEntries*sizeof(fptype)); 
+  gooMalloc((void**) &dev_event_array, dimensions*numEntries*sizeof(fptype));
+  printf ("dimensions:%i numEntries:%i\n", dimensions, numEntries);
   MEMCPY(dev_event_array, host_array, dimensions*numEntries*sizeof(fptype), cudaMemcpyHostToDevice);
-  delete[] host_array; 
+  //delete[] host_array; 
+  //free (host_array);
 #endif
 }
 
@@ -371,6 +427,11 @@ __host__ void PdfBase::setData (BinnedDataSet* data)
 }
 
 __host__ void PdfBase::generateNormRange () {
+  if (normRanges) gooFree (normRanges);
+  gooMalloc((void**)&normRanges, 3*observables.size ()*sizeof (fptype));
+
+
+  fptype *host_norms = new fptype[3*observables.size()];
   // Don't use index in this case to allow for, eg, 
   // a single observable whose index is 1; or two observables with indices
   // 0 and 2. Make one array per functor, as opposed to variable, to make
@@ -381,13 +442,15 @@ __host__ void PdfBase::generateNormRange () {
 
   //(brad) This is modified since this is added after initial setup.  everything else afterwards needs to propogate these changes
   for (obsIter v = obsBegin(); v != obsEnd(); ++v) {
-    host_params[normalisationIdx + 1 + 3*counter + 0] = (*v)->lowerlimit;
-    host_params[normalisationIdx + 1 + 3*counter + 1] = (*v)->upperlimit;
-    host_params[normalisationIdx + 1 + 3*counter + 2] = integrationBins > 0 ? integrationBins : (*v)->numbins;
+    host_norms[3*counter + 0] = (*v)->lowerlimit;
+    host_norms[3*counter + 1] = (*v)->upperlimit;
+    host_norms[3*counter + 2] = integrationBins > 0 ? integrationBins : (*v)->numbins;
 
     //printf ("l:%f u:%f bins:%f\n", host_params[normalisationIdx + 1], host_params[normalisationIdx + 2], host_params[normalisationIdx + 3]);
     counter ++;
   }
+
+  MEMCPY(normRanges, host_norms, 3*observables.size()*sizeof(fptype), cudaMemcpyHostToDevice);
 }
 
 void PdfBase::clearCurrentFit () {

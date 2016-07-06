@@ -26,15 +26,16 @@ extern unsigned int host_indices[maxParams];
 extern int totalParams; 
 //extern int totalConstants;
 
-class PdfBase {
-
+class PdfBase
+{
 public:
   PdfBase (Variable* x, std::string n); 
+  virtual ~PdfBase ();
 
   enum Specials {ForceSeparateNorm = 1, ForceCommonNorm = 2}; 
 
-  __host__ virtual double calculateNLL () const = 0; 
-  __host__ virtual fptype normalise () const = 0;
+  __host__ virtual double calculateNLL () = 0;
+  __host__ virtual fptype normalise () = 0;
   __host__ void initialiseIndices (std::vector<unsigned int> pindices); 
 
   __host__ void populateCudaArray (const int &params, const int &observables, const int &constants, const int &norms);
@@ -48,7 +49,9 @@ public:
 
   __host__ void addSpecialMask (int m) {specialMask |= m;}
   __host__ void copyParams (const std::vector<double>& pars) const;
-  __host__ void copyParams (); 
+  //todo: this is a recursive copy for each component, don't use the copyParams
+  __host__ void copy (std::vector<Variable*> updates);
+  __host__ void copyParams (std::vector<Variable*> updates); 
   //__host__ void copyNormFactors () const;
   __host__ void generateNormRange (); 
   __host__ std::string getName () const {return name;} 
@@ -82,6 +85,8 @@ public:
   __host__ void checkInitStatus (std::vector<std::string>& unInited) const; 
   void clearCurrentFit (); 
 
+  __host__ virtual void recursiveSetIndices ();
+
 protected:
   fptype numEvents;         // Non-integer to allow weighted events
   unsigned int numEntries;  // Eg number of bins - not always the same as number of events, although it can be. 
@@ -112,11 +117,10 @@ protected:
 
   void setNumPerTask (PdfBase *p, const int &c);
 
+  __host__ virtual void setIndices ();
+
 private:
   std::string name; 
-
-  __host__ void recursiveSetIndices ();
-  __host__ void setIndices ();
 };
 
 
