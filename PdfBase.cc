@@ -24,6 +24,10 @@ PdfBase::PdfBase (Variable* x, std::string n)
   if (x) registerObservable(x);
 }
 
+PdfBase::~PdfBase ()
+{
+}
+
 __host__ void PdfBase::checkInitStatus (std::vector<std::string>& unInited) const {
   if (!properlyInitialised) unInited.push_back(getName());
   for (unsigned int i = 0; i < components.size(); ++i) {

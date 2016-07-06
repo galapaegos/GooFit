@@ -97,7 +97,7 @@ __host__ fptype ProdPdf::normalise () const {
   for (std::vector<PdfBase*>::const_iterator c = components.begin(); c != components.end(); ++c) {
     (*c)->normalise(); 
   }
-  host_normalisation[parameters] = 1; 
+  host_normalisation[normalisationIdx] = 1; 
   //MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
   
   return 1.0; 

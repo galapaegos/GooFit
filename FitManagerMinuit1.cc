@@ -28,13 +28,15 @@ void FitManager::setupMinuit () {
   int counter = 0; 
   for (std::vector<Variable*>::iterator i = vars.begin(); i != vars.end(); ++i) {
     minuit->DefineParameter(counter, (*i)->name.c_str(), (*i)->value, (*i)->error, (*i)->lowerlimit, (*i)->upperlimit); 
+    (*i)->index = counter;
+    //printf ("variable:%s value:%f counter:%i\n", (*i)->name.c_str(), (*i)->value, counter);
     if ((*i)->fixed) minuit->FixParameter(counter);
     counter++; 
     if (maxIndex < (*i)->getIndex()) maxIndex = (*i)->getIndex();
   }
 
   numPars = maxIndex+1; 
-  pdfPointer->copyParams();   
+  pdfPointer->copyParams(vars);   
   minuit->SetFCN(FitFun); 
 }
 
@@ -64,17 +66,35 @@ void FitManager::getMinuitValues () const {
 }
 
 void FitFun(int &npar, double *gin, double &fun, double *fp, int iflag) {
-  vector<double> pars;
+  //vector<double> pars;
   // Notice that npar is number of variable parameters, not total. 
-  pars.resize(numPars); 
+  //pars.resize(numPars); 
+  /*
   int counter = 0; 
   for (std::vector<Variable*>::iterator i = vars.begin(); i != vars.end(); ++i) {
     if (std::isnan(fp[counter])) cout << "Variable " << (*i)->name << " " << (*i)->index << " is NaN\n"; 
-    (*i)->mixValue = fp[counter] + (*i)->blind;
-    pars[(*i)->getIndex()] = fp[counter++] + (*i)->blind; 
+    //We want to update the values
+    (*i)->value = fp[counter++] + (*i)->blind;
+    //pars[(*i)->getIndex()] = fp[counter++] + (*i)->blind; 
+  }
+  */
+
+  for (int i = 0; i < numPars; i++)
+  {
+    for (int j = 0; j < vars.size (); j++)
+    {
+      if (vars[j]->index == i)
+      {
+        //printf ("variable:%s value:%f counter:%i\n", vars[j]->name.c_str (), fp[i] + vars[j]->blind, i);
+        vars[j]->value = fp[i] + vars[j]->blind;
+      }
+    }
   }
   
-  pdfPointer->copyParams(pars); 
+  //pdfPointer->copyParams(pars); 
+
+  pdfPointer->copy (vars);
+
   fun = pdfPointer->calculateNLL(); 
   host_callnumber++; 
 

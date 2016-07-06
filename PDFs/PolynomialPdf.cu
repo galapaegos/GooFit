@@ -1,38 +1,41 @@
 #include "PolynomialPdf.hh"
 
-EXEC_TARGET fptype device_Polynomial (fptype* evt, fptype* p, unsigned int* indices) {
+EXEC_TARGET fptype device_Polynomial (fptype* evt, unsigned int *funcIdx, unsigned int* indices) {
   // Structure is nP lowestdegree c1 c2 c3 nO o1
 
   int numParams = cudaArray[*indices + 0]; 
-  int lowestDegree = cudaArray[*indices + 1]; 
+  int numObs = cudaArray[*indices + numParams + 1];
+  int numCons = cudaArray[*indices + numParams + 1 + numObs + 1];
+  int lowestDegree = cudaArray[*indices + numParams + 1 + numObs + 1 + 1]; 
 
   fptype x = evt[0];//indices[2 + indices[0]]]; 
   fptype ret = 0; 
-  for (int i = 2; i < numParams; ++i)
+  for (int i = 1; i < numParams; ++i)
   {
-    ret += cudaArray[*indices + i + 1] * POW(x, lowestDegree + i - 2); 
+    ret += cudaArray[*indices + i] * POW(x, lowestDegree + i - 1); 
   }
 
   *indices += 7;
+  *funcIdx += 1;
 
   return ret; 
 }
 
-EXEC_TARGET fptype device_OffsetPolynomial (fptype* evt, fptype* p, unsigned int* indices) {
+EXEC_TARGET fptype device_OffsetPolynomial (fptype* evt, unsigned int *funcIdx, unsigned int* indices) {
   int numParams = indices[0]; 
   int lowestDegree = indices[1]; 
 
   fptype x = evt[indices[2 + numParams]]; 
-  x -= p[indices[numParams]]; 
+  x -= cudaArray[*indices + numParams]; 
   fptype ret = 0; 
   for (int i = 2; i < numParams; ++i) {
-    ret += p[indices[i]] * POW(x, lowestDegree + i - 2); 
+    ret += cudaArray[*indices + i] * POW(x, lowestDegree + i - 2); 
   }
 
   return ret; 
 }
 
-EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, fptype* p, unsigned int* indices) {
+EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, unsigned int* funcIdx, unsigned int* indices) {
   // Structure is nP, maxDegree, offset1, offset2, ..., coeff1, coeff2, ..., nO, o1, o2, ... 
   int idx[2];
   idx[0] = indices[0];
@@ -50,7 +53,7 @@ EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, fptype* p, unsigned int*
   for (int i = 0; i < numObservables; ++i) numBoxes *= maxDegree; 
 
   int coeffNumber = 2 + numObservables; // Index of first coefficient is 2 + nO, not 1 + nO, due to maxDegree. (nO comes from offsets.) 
-  fptype ret = p[indices[coeffNumber++]]; // Coefficient of constant term. 
+  fptype ret = cudaArray[*indices + 1 + coeffNumber++]; // Coefficient of constant term. 
   for (int i = 1; i < numBoxes; ++i) { // Notice skip of inmost 'box' in the pyramid, corresponding to all powers zero, already accounted for. 
     fptype currTerm = 1; 
     int currIndex = i; 
@@ -64,7 +67,7 @@ EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, fptype* p, unsigned int*
       tmp[0] = indices[2 + j];
       tmp[1] = indices[2 + idx[0] + j];
 
-      fptype offset = p[tmp[0]]; // x0, y0, z0... 
+      fptype offset = cudaArray[tmp[0]]; // x0, y0, z0... 
       fptype x = evt[tmp[1]]; // x, y, z...    
 
       x -= offset; 
@@ -82,7 +85,7 @@ EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, fptype* p, unsigned int*
     //printf(") End box %i\n", i);
     // All threads should hit this at the same time and with the same result. No branching. 
     if (sumOfIndices >= maxDegree) continue; 
-    fptype coefficient = p[indices[coeffNumber++]]; // Coefficient from MINUIT
+    fptype coefficient = cudaArray[*indices + coeffNumber++]; // Coefficient from MINUIT
     //if ((gpuDebug & 1) && (THREADIDX == 50) && (BLOCKIDX == 3))
     //if ((BLOCKIDX == internalDebug1) && (THREADIDX == internalDebug2)) 
     //if ((1 > (int) floor(0.5 + evt[8])) && (gpuDebug & 1) && (paramIndices + debugParamIndex == indices))
@@ -111,8 +114,10 @@ __host__ PolynomialPdf::PolynomialPdf (string n, Variable* _x, vector<Variable*>
 
   vector<unsigned int> pindices;
   pindices.push_back(lowestDegree);
+  constants.push_back (lowestDegree);
   for (vector<Variable*>::iterator v = weights.begin(); v != weights.end(); ++v) {
     pindices.push_back(registerParameter(*v));
+    parameterList.push_back (*v);
   } 
   if (x0) {
     pindices.push_back(registerParameter(x0));
@@ -172,7 +177,49 @@ __host__ PolynomialPdf::PolynomialPdf (string n, vector<Variable*> obses, vector
   initialise(pindices); 
 }
 
-__host__ fptype PolynomialPdf::integrate (fptype lo, fptype hi) const {
+PolynomialPdf::~PolynomialPdf ()
+{
+}
+
+__host__ void PolynomialPdf::recursiveSetIndices ()
+{
+  //(brad): copy into our device list, will need to have a variable to determine type
+  GET_FUNCTION_ADDR(ptr_to_Polynomial);
+  host_function_table[num_device_functions] = host_fcn_ptr;
+  functionIdx = num_device_functions;
+  num_device_functions ++;
+ //(brad): confused by this parameters variable.  Wouldn't each PDF get the current total, not the current amount?
+  //parameters = totalParams;
+  //totalParams += (2 + pindices.size() + observables.size());
+
+  //in order to figure out the next index, we will need to do some additions to get all the proper offsets
+  host_params[totalParams++] = parameterList.size ();
+  parametersIdx = totalParams;
+  for (int i = 0; i < parameterList.size (); i++)
+    host_params[totalParams++] = parameterList[i]->value;
+
+  host_params[totalParams++] = observables.size ();
+  observablesIdx = totalParams;
+  for (int i = 0; i < observables.size (); i++)
+    host_params[totalParams++] = observables[i]->value;
+
+  host_params[totalParams++] = constants.size ();
+  constantsIdx = totalParams;
+  for (int i = 0; i < constants.size (); i++)
+    host_params[totalParams++] = constants[i];
+
+  //normalisation
+  host_params[totalParams++] = 1;
+  normalisationIdx = totalParams;
+  host_params[totalParams++] = 0;
+
+  for (int i = 0; i < components.size (); i++)
+    components[i]->recursiveSetIndices ();
+
+  generateNormRange();
+}
+
+__host__ fptype PolynomialPdf::integrate (fptype lo, fptype hi) {
   // This is *still* wrong. (13 Feb 2013.) 
   unsigned int* indices = host_indices+parameters; 
   fptype lowestDegree = indices[1]; 
@@ -194,7 +241,7 @@ __host__ fptype PolynomialPdf::integrate (fptype lo, fptype hi) const {
   return ret; 
 }
 
-__host__ fptype PolynomialPdf::getCoefficient (int coef) const {
+__host__ fptype PolynomialPdf::getCoefficient (int coef) {
   // NB! This function only works for single polynomials. 
   if (1 != observables.size()) {
     std::cout << "Warning: getCoefficient method of PolynomialPdf not implemented for multi-dimensional polynomials. Returning zero, which is very likely wrong.\n"; 

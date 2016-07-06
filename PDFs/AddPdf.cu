@@ -1,23 +1,30 @@
 #include "AddPdf.hh"
 
-EXEC_TARGET fptype device_AddPdfs (fptype* evt, fptype* p, unsigned int* indices) { 
+EXEC_TARGET fptype device_AddPdfs (fptype* evt, unsigned int *funcIdx, unsigned int* indices) { 
+  //addition example - numParameters is 5
   int numParameters = cudaArray[*indices]; 
   fptype ret = 0;
   fptype totalWeight = 0; 
-  for (int i = 1; i < numParameters-3; i += 3) {
-    int idx[3];
-    idx[0] = cudaArray[*indices + i + 1];
-    idx[1] = cudaArray[*indices + i + 2];
-    idx[2] = cudaArray[*indices + i + 3];
-    fptype pidx = cudaArray[*indices + 1];
-    fptype norm = cudaArray[*indices + 6];
 
-    // 8 at least?
+  *funcIdx += 1;
+  for (int i = 0; i < numParameters; i ++)
+  {
+    //totalWeight += p[indices[i + 2]]   (0.9)
+
+    //
+    fptype weight = cudaArray[*indices + i + 1];
+
     *indices += 7;
 
-    totalWeight += pidx;
-    fptype curr = callFunction(evt, idx[0], indices); 
-    fptype weight = pidx;
+    int np = cudaArray[*indices];
+    int obs = cudaArray[*indices + np + 1];
+    int con = cudaArray[*indices + np + 1 + obs + 1];
+    fptype norm = cudaArray[*indices + np + 1 + obs + 1 + con + 1 + 1];
+
+    totalWeight += weight;
+    //first call to callFunction is device_Gaussian
+    fptype curr = callFunction(evt, funcIdx, indices); 
+
     ret += weight * curr * norm; 
 
     //if ((gpuDebug & 1) && (0 == THREADIDX) && (0 == BLOCKIDX)) 
@@ -26,15 +33,19 @@ EXEC_TARGET fptype device_AddPdfs (fptype* evt, fptype* p, unsigned int* indices
 
   }
 
-  int tidx[2];
-  tidx[0] = indices[numParameters];
-  tidx[1] = indices[numParameters - 1];
+  numParameters = cudaArray[*indices];
+  int obs = cudaArray[*indices + numParameters + 1];
+  int con = cudaArray[*indices + numParameters + 1 + obs + 1];
+  fptype normFactors = cudaArray[*indices + numParameters + 1 + obs + 1 + con + 1 + 1];
+
   // numParameters does not count itself. So the array structure for two functions is
   // nP | F P w | F P
   // in which nP = 5. Therefore the parameter index for the last function pointer is nP, and the function index is nP-1. 
   //fptype last = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[numParameters-1]])))(evt, p, paramIndices + indices[numParameters]);
-  fptype last = callFunction(evt, tidx[1], indices);
-  ret += (1 - totalWeight) * last * cudaArray[tidx[0]]; 
+
+  //addition example calls device_Polynomial
+  fptype last = callFunction(evt, funcIdx, indices);
+  ret += (1 - totalWeight) * last * normFactors; 
 
   //if ((THREADIDX < 50) && (isnan(ret))) printf("NaN final component %f %f\n", last, totalWeight); 
 
@@ -45,10 +56,11 @@ EXEC_TARGET fptype device_AddPdfs (fptype* evt, fptype* p, unsigned int* indices
   return ret; 
 }
 
-EXEC_TARGET fptype device_AddPdfsExt (fptype* evt, fptype* p, unsigned int* indices) { 
+EXEC_TARGET fptype device_AddPdfsExt (fptype* evt, unsigned int* funcIdx, unsigned int* indices) { 
   // numParameters does not count itself. So the array structure for two functions is
   // nP | F P w | F P w
   // in which nP = 6. 
+  funcIdx += 1;
 
   int numParameters = indices[0]; 
   fptype ret = 0;
@@ -56,9 +68,9 @@ EXEC_TARGET fptype device_AddPdfsExt (fptype* evt, fptype* p, unsigned int* indi
   for (int i = 1; i < numParameters; i += 3) {    
     *indices += 3;
     //fptype curr = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[i]])))(evt, p, paramIndices + indices[i+1]);
-    fptype curr = callFunction(evt, indices[i], indices); 
-    fptype weight = p[indices[i+2]];
-    ret += weight * curr * cudaArray[indices[i+1]]; 
+    fptype curr = callFunction(evt, funcIdx, indices); 
+    fptype weight = cudaArray[*indices + i+2];
+    ret += weight * curr * cudaArray[*indices + i+1]; 
 
     totalWeight += weight; 
     //if ((gpuDebug & 1) && (THREADIDX == 0) && (0 == BLOCKIDX)) 
@@ -92,17 +104,20 @@ AddPdf::AddPdf (std::string n, std::vector<Variable*> weights, std::vector<PdfBa
 
   getObservables(observables); 
 
+  weightIdx = 0;
+
   std::vector<unsigned int> pindices;
   for (unsigned int w = 0; w < weights.size(); ++w) {
     assert(components[w]);
-    pindices.push_back(components[w]->getFunctionIndex());
-    pindices.push_back(components[w]->getParameterIndex());
+    //pindices.push_back(components[w]->getFunctionIndex());
+    //pindices.push_back(components[w]->getParameterIndex());
     pindices.push_back(registerParameter(weights[w])); 
+    m_weights.push_back (weights[w]);
   }
   assert(components.back()); 
   if (weights.size() < components.size()) {
-    pindices.push_back(components.back()->getFunctionIndex());
-    pindices.push_back(components.back()->getParameterIndex());
+    //pindices.push_back(components.back()->getFunctionIndex());
+    //pindices.push_back(components.back()->getParameterIndex());
     extended = false; 
   }
 
@@ -123,6 +138,8 @@ AddPdf::AddPdf (std::string n, Variable* frac1, PdfBase* func1, PdfBase* func2)
   components.push_back(func2);
   getObservables(observables); 
 
+  weightIdx = 0;
+
   std::vector<unsigned int> pindices;
   pindices.push_back(func1->getFunctionIndex());
   pindices.push_back(func1->getParameterIndex());
@@ -136,20 +153,74 @@ AddPdf::AddPdf (std::string n, Variable* frac1, PdfBase* func1, PdfBase* func2)
   initialise(pindices); 
 } 
 
-__host__ fptype AddPdf::normalise () const {
-  //if (cpuDebug & 1) std::cout << "Normalising AddPdf " << getName() << std::endl;
+AddPdf::~AddPdf ()
+{
+}
+
+__host__ void AddPdf::recursiveSetIndices ()
+{
+  //(brad): all pdfs need to add themselves to device list so we can increment
+  if (extended)
+    GET_FUNCTION_ADDR(ptr_to_AddPdfsExt);
+  else
+    GET_FUNCTION_ADDR(ptr_to_AddPdfs);
+  host_function_table[num_device_functions] = host_fcn_ptr;
+  functionIdx = num_device_functions;
+  num_device_functions ++;
+
+  //(brad): Each call needs to set the indices into the array.  In otherwords, each function needs to 'pre-load'
+  //all parameters.  This means that each function will need to read all their variables/parameters they will use
+  //before calling any other functions.
+  host_params[totalParams++] = parameterList.size ();
+  parametersIdx = totalParams;
+  for (int i = 0; i < parameterList.size (); i++)
+    host_params[totalParams++] = parameterList[i]->value;
+
+  host_params[totalParams++] = observables.size ();
+  observablesIdx = totalParams;
+  for (int i = 0; i < observables.size (); i++)
+    host_params[totalParams++] = observables[i]->value;
+
+  host_params[totalParams++] = constants.size ();
+  constantsIdx = totalParams;
+  for (int i = 0; i < constants.size (); i++)
+    host_params[totalParams++] = constants[i];
+
+  //normalisation
+  host_params[totalParams++] = 1;
+  normalisationIdx = totalParams;
+  host_params[totalParams++] = 0;
+
+  for (unsigned int i = 0; i < components.size(); ++i)
+    components[i]->recursiveSetIndices();
+
+  generateNormRange ();
+}
+
+__host__ fptype AddPdf::normalise () {
+  //if (cpuDebug & 1)
+  //std::cout << "Normalising AddPdf " << getName() << std::endl;
 
   fptype ret = 0;
   fptype totalWeight = 0; 
-  for (unsigned int i = 0; i < components.size()-1; ++i) {
-    fptype weight = host_params[host_indices[parameters + 3*(i+1)]]; 
+
+  //Unsure if I need to know the functions indices?
+  for (unsigned int i = 0; i < components.size()-1; ++i)
+  {
+    //addition example:  This parameter is 0.9
+    //fptype weight = host_params[host_indices[parameters + 3*(i+1)]]; 
+    fptype weight = host_params[parametersIdx];
     totalWeight += weight;
+    //curr is 2.506628274631
     fptype curr = components[i]->normalise(); 
     ret += curr*weight;
   }
+
+  //last is 10
   fptype last = components.back()->normalise(); 
   if (extended) {
-    fptype lastWeight = host_params[host_indices[parameters + 3*components.size()]];
+    //Whoah, must test this out.  This is where it *should* be
+    fptype lastWeight = host_params[parametersIdx + + 3*components.size()];
     totalWeight += lastWeight;
     ret += last * lastWeight; 
     ret /= totalWeight; 
@@ -157,7 +228,9 @@ __host__ fptype AddPdf::normalise () const {
   else {
     ret += (1 - totalWeight) * last;
   }
-  host_normalisation[parameters] = 1.0; 
+
+  //host_normalisation[parameters] = 1.0; 
+  host_params[normalisationIdx] = 1.0;
 
   if (getSpecialMask() & PdfBase::ForceCommonNorm) {
     // Want to normalise this as 

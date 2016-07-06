@@ -26,6 +26,7 @@ all:	$(PROGRAMS)
 
 addition:	addition.o 
 		$(LD) $(LDFLAGS) $^ $(THRUSTO) $(LIBS) $(ROOT_LIBS) $(OutPutOpt) $@
+		cp addition.cu addition.cc
 		@echo "$@ done"
 
 clean:

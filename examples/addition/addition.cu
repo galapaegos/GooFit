@@ -15,9 +15,27 @@
 #include <sys/times.h>
 #include <iostream>
 
+#include <chrono>
+
+#define timeCheck() std::chrono::high_resolution_clock::now ()
+#define duration(x) std::chrono::duration<double, milli> (x).count()
+#define profile(x)\
+{\
+  auto start = std::chrono::high_resolution_clock::now();\
+  x;\
+  auto stop = std::chrono::high_resolution_clock::now();\
+  std::cout << std::chrono::duration<double, milli> (stop - start).count() << " ms. " << std::endl;\
+}
+
 using namespace std; 
 
 int main (int argc, char** argv) {
+  if (argc != 2)
+  {
+    printf ("./addition [number of events]\n");
+    return -1;
+  }
+
 #ifdef TARGET_MPI
   MPI_Init(&argc, &argv);
 #endif
@@ -34,6 +52,8 @@ int main (int argc, char** argv) {
   gStyle->SetLineColor(1);
   gStyle->SetPalette(1, 0);
 
+  int numEvents = atoi (argv[1]);
+
   vector<Variable*> vars; 
   Variable* xvar = new Variable("xvar", -5, 5); vars.push_back(xvar);
   UnbinnedDataSet data(vars);
@@ -45,7 +65,7 @@ int main (int argc, char** argv) {
 
   TRandom donram(42); 
   double totalData = 0; 
-  for (int i = 0; i < 100000; ++i) {
+  for (int i = 0; i < numEvents; ++i) {
     xvar->value = donram.Gaus(0.2, 1.1);
     if (donram.Uniform() < 0.1) xvar->value = donram.Uniform(xvar->lowerlimit, xvar->upperlimit); 
     if (fabs(xvar->value) > 5) {--i; continue;} 
@@ -74,7 +94,7 @@ int main (int argc, char** argv) {
   AddPdf total("total", vars, comps);
   total.setData(&data);
   FitManager fitter(&total);
-  fitter.fit(); 
+  profile(fitter.fit());
   fitter.getMinuitValues(); 
  
   TH1F pdfHist("pdfHist", "", 
