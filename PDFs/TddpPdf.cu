@@ -121,7 +121,7 @@ EXEC_TARGET ThreeComplex device_Tddp_calcIntegrals (fptype m12, fptype m13, int 
   return ret; 
 }
 
-EXEC_TARGET fptype device_Tddp (fptype* evt, fptype* p, unsigned int* indices) {
+EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int* indices) {
   int idx[14];
   idx[ 0] = indices[0];
   idx[ 1] = indices[1];
@@ -141,6 +141,7 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, fptype* p, unsigned int* indices) {
   unsigned int numResonances = idx[6]; 
   unsigned int cacheToUse    = idx[7]; 
 
+  *funcIdx += 1;
 
   fptype motherMass = cudaArray[idx[1] + 0]; 
   fptype daug1Mass  = cudaArray[idx[1] + 1]; 
@@ -179,9 +180,9 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, fptype* p, unsigned int* indices) {
     sumWavesB += matrixelement; 
   } 
 
-  fptype _tau     = p[idx[2]];
-  fptype _xmixing = p[idx[3]];
-  fptype _ymixing = p[idx[4]];
+  fptype _tau     = cudaArray[idx[2]];
+  fptype _xmixing = cudaArray[idx[3]];
+  fptype _ymixing = cudaArray[idx[4]];
   
   fptype _time    = evt[idx[8]];
   fptype _sigma   = evt[idx[9]];
@@ -259,7 +260,8 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, fptype* p, unsigned int* indices) {
 													   p, &(indices[resFunctionPar])); 
   }
    
-  fptype eff = callFunction(evt, indices[effFunctionIdx], indices); 
+  //fptype eff = callFunction(evt, indices[effFunctionIdx], indices); 
+  fptype eff = callFunction(evt, funcIdx, indices); 
   //internalDebug = 0; 
   ret *= eff;
 
@@ -742,7 +744,9 @@ EXEC_TARGET ThreeComplex SpecialDalitzIntegrator::operator () (thrust::tuple<int
   int effFunctionIdx = parIndexFromResIndex(numResonances); 
   //if (thrust::get<0>(t) == 19840) {internalDebug1 = BLOCKIDX; internalDebug2 = THREADIDX;}
   //fptype eff = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[effFunctionIdx]])))(fakeEvt, cudaArray, paramIndices + indices[effFunctionIdx + 1]);
-  fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices); 
+  unsigned int funcIdx = 0;
+  fptype eff = callFunction(fakeEvt, &funcIdx, indices); 
+  //fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices); 
   //if (thrust::get<0>(t) == 19840) {
   //internalDebug1 = -1; 
   //internalDebug2 = -1;

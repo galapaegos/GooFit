@@ -499,17 +499,17 @@ EXEC_TARGET fptype MetricTaker::operator () (thrust::tuple<int, fptype*, int> t)
   int eventSize  = thrust::get<2>(t);
   fptype* eventAddress = thrust::get<1>(t) + (eventIndex * abs(eventSize)); 
 
-  // Causes stack size to be statically undeterminable.
-  unsigned int funcIdx = 0;
-  unsigned int paramIdx = 0;
-  fptype ret = callFunction(eventAddress, &funcIdx, &paramIdx);
-
   unsigned int params = cudaArray[0];
   unsigned int observ = cudaArray[params + 1];
   unsigned int consta = cudaArray[params + 1 + observ + 1];
   unsigned int normal = cudaArray[params + 1 + observ + 1 + consta + 1];
 
   unsigned int normalIdx = params + 1 + observ +  1 + consta + 1 + 1;
+
+  // Causes stack size to be statically undeterminable.
+  unsigned int funcIdx = 0;
+  unsigned int paramIdx = 0;
+  fptype ret = callFunction(eventAddress, &funcIdx, &paramIdx);
 
   // Notice assumption here! For unbinned fits the 'eventAddress' pointer won't be used
   // in the metric, so it doesn't matter what it is. For binned fits it is assumed that
