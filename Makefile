@@ -4,7 +4,7 @@ PWD = $(shell /bin/pwd)
 SRCDIR = $(PWD)/PDFs
 
 # GooPdf must be first in CUDAglob, as it defines global variables.
-FUNCTORLIST    = $(SRCDIR)/GooPdf.cu $(SRCDIR)/AddPdf.cu $(SRCDIR)/GaussianPdf.cu $(SRCDIR)/PolynomialPdf.cu
+FUNCTORLIST    = $(SRCDIR)/GooPdf.cu $(SRCDIR)/AddPdf.cu $(SRCDIR)/GaussianPdf.cu $(SRCDIR)/PolynomialPdf.cu $(SRCDIR)/TddpPdf.cu $(SRCDIR)/DalitzPlotPdf.cu $(SRCDIR)/DalitzVetoPdf.cu $(SRCDIR)/ResonancePdf.cu $(SRCDIR)/MixingTimeResolution_Aux.cu
 #FUNCTORLIST    += $(filter-out $(SRCDIR)/GooPdf.cu, $(wildcard $(SRCDIR)/*Pdf.cu))
 #FUNCTORLIST   += $(wildcard $(SRCDIR)/*Aux.cu)
 HEADERLIST     = $(patsubst %.cu,%.hh,$(SRCFILES))

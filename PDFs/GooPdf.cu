@@ -36,6 +36,8 @@ void* host_function_table[200];
 unsigned int num_device_functions = 0; 
 map<void*, int> functionAddressToDeviceIndexMap; 
 
+MEM_DEVICE fptype binCenters[1024*5];
+
 // For use in debugging memory issues
 void printMemoryStatus (std::string file, int line) {
   size_t memfree = 0;
@@ -538,7 +540,8 @@ EXEC_TARGET fptype MetricTaker::operator () (thrust::tuple<int, int, fptype*> t)
 
   // Do not understand why this cannot be declared __shared__. Dynamically allocating shared memory is apparently complicated. 
   //fptype* binCenters = (fptype*) malloc(evtSize * sizeof(fptype));
-  MEM_SHARED fptype binCenters[1024*MAX_NUM_OBSERVABLES];
+  //MEM_SHARED fptype binCenters[1024*MAX_NUM_OBSERVABLES];
+  //fptype binCenters[1024*MAX_NUM_OBSERVABLES];
 
   // To convert global bin number to (x,y,z...) coordinates: For each dimension, take the mod 
   // with the number of bins in that dimension. Then divide by the number of bins, in effect

@@ -25,49 +25,73 @@ EXEC_TARGET devcomplex<fptype> device_DalitzPlot_calcIntegrals (fptype m12, fpty
   // observed points, that's why it doesn't use 
   // cResonances. No need to cache the values at individual
   // grid points - we only care about totals. 
-  fptype motherMass = cudaArray[indices[1] + 0]; 
-  fptype daug1Mass  = cudaArray[indices[1] + 1]; 
-  fptype daug2Mass  = cudaArray[indices[1] + 2]; 
-  fptype daug3Mass  = cudaArray[indices[1] + 3];  
+  int numParams = cudaArray[*indices];
+  int paramIdx = 1;
+
+  fptype motherMass = cudaArray[*indices + 1]; 
+  fptype daug1Mass  = cudaArray[*indices + 2]; 
+  fptype daug2Mass  = cudaArray[*indices + 3]; 
+  fptype daug3Mass  = cudaArray[*indices + 4];  
+
+  int numObs = int (cudaArray[*indices + numParams + 1 + numObs + 1]);
+  int obsIdx = numParams + 2;
+
+  int numCons = int (cudaArray[*indices + numParams + 1 + numObs + 1]);
+  int consIdx = numParams + 1 + numObs + 2;
 
   devcomplex<fptype> ret; 
   if (!inDalitz(m12, m13, motherMass, daug1Mass, daug2Mass, daug3Mass)) return ret;
   fptype m23 = motherMass*motherMass + daug1Mass*daug1Mass + daug2Mass*daug2Mass + daug3Mass*daug3Mass - m12 - m13; 
 
-  int parameter_i = parIndexFromResIndex_DP(res_i);
-  unsigned int functn_i = indices[parameter_i+2];
-  unsigned int params_i = indices[parameter_i+3];
+  unsigned int numResonances = (unsigned int)cudaArray[*indices + consIdx + 4];
+
+  //int parameter_i = parIndexFromResIndex_DP(res_i);
+  int parameter_i = resonanceOffset_DP + res_i*numResonances;
+  unsigned int functn_i = cudaArray[*indices + consIdx + parameter_i + 3];
+  unsigned int params_i = cudaArray[*indices + consIdx + parameter_i + 4];
   ret = getResonanceAmplitude(m12, m13, m23, functn_i, params_i);
 
-  int parameter_j = parIndexFromResIndex_DP(res_j);
-  unsigned int functn_j = indices[parameter_j+2];
-  unsigned int params_j = indices[parameter_j+3];
+  //int parameter_j = parIndexFromResIndex_DP(res_j);
+  int parameter_j = resonanceOffset_DP + res_j*numResonances;
+  unsigned int functn_j = cudaArray[*indices + consIdx + parameter_j + 3];
+  unsigned int params_j = cudaArray[*indices + consIdx + parameter_j + 4];
   ret *= conj(getResonanceAmplitude(m12, m13, m23, functn_j, params_j));
+
+  *indices += numParams + 1 + numObs + 1 + numCons + 1 + 2;
 
   return ret; 
 }
 
-EXEC_TARGET fptype device_DalitzPlot (fptype* evt, fptype* p, unsigned int* indices) {
-  fptype motherMass = cudaArray[indices[1] + 0]; 
-  fptype daug1Mass  = cudaArray[indices[1] + 1]; 
-  fptype daug2Mass  = cudaArray[indices[1] + 2]; 
-  fptype daug3Mass  = cudaArray[indices[1] + 3]; 
+EXEC_TARGET fptype device_DalitzPlot (fptype* evt, unsigned int *funcIdx, unsigned int* indices) {
+  int numParams = cudaArray[*indices];
+ 
+  int paramIdx = 1;
+  fptype m12 = cudaArray[*indices + paramIdx + 0]; 
+  fptype m13 = cudaArray[*indices + paramIdx + 1];
+  int evtNum = int (FLOOR(0.5 + cudaArray[*indices + paramIdx + 2]));
 
-  fptype m12 = evt[indices[2 + indices[0]]]; 
-  fptype m13 = evt[indices[3 + indices[0]]];
+  int numObs = cudaArray[*indices + numParams + 1];
+  int obsIdx = numParams + 2; 
+  int numCons = int (cudaArray[*indices + numParams + 1 + numObs + 1]);
+  int consIdx = numParams + 1 + numObs + 2;
+  fptype motherMass = cudaArray[*indices + consIdx + 0]; 
+  fptype daug1Mass  = cudaArray[*indices + consIdx + 1]; 
+  fptype daug2Mass  = cudaArray[*indices + consIdx + 2]; 
+  fptype daug3Mass  = cudaArray[*indices + consIdx + 3]; 
 
   if (!inDalitz(m12, m13, motherMass, daug1Mass, daug2Mass, daug3Mass)) return 0; 
-  int evtNum = (int) FLOOR(0.5 + evt[indices[4 + indices[0]]]); 
 
   devcomplex<fptype> totalAmp(0, 0);
-  unsigned int numResonances = indices[2]; 
-  unsigned int cacheToUse    = indices[3]; 
+
+  unsigned int numResonances = (unsigned int)cudaArray[*indices + consIdx + 4];
+  unsigned int cacheToUse    = (unsigned int)cudaArray[*indices + consIdx + 5]; 
 
 #pragma unroll
   for (int i = 0; i < numResonances; ++i) {
-    int paramIndex  = parIndexFromResIndex_DP(i);
-    fptype amp_real = p[indices[paramIndex+0]];
-    fptype amp_imag = p[indices[paramIndex+1]];
+    //debug this:
+    //int paramIndex  = parIndexFromResIndex_DP(i);
+    fptype amp_real = cudaArray[*indices + paramIdx + 4 + i*numResonances + 3];
+    fptype amp_imag = cudaArray[*indices + paramIdx + 4 + i*numResonances + 4];
 
     devcomplex<fptype> matrixelement((cResonances[cacheToUse][evtNum*numResonances + i]).real,
 				     (cResonances[cacheToUse][evtNum*numResonances + i]).imag); 
@@ -76,8 +100,13 @@ EXEC_TARGET fptype device_DalitzPlot (fptype* evt, fptype* p, unsigned int* indi
   } 
 
   fptype ret = norm2(totalAmp); 
-  int effFunctionIdx = parIndexFromResIndex_DP(numResonances); 
-  fptype eff = callFunction(evt, indices[effFunctionIdx], indices); 
+
+  *funcIdx += 1;
+  // + 3, +1 for num constants, + 1 for num of norms, + 1 over the norms;
+  *indices += numParams + 1 + numObs + 1 + numCons + 3;
+  //we get our function index by adding
+  //int effFunctionIdx = parIndexFromResIndex_DP(numResonances); 
+  fptype eff = callFunction(evt, funcIdx, indices); 
   ret *= eff;
 
   //printf("DalitzPlot evt %i zero: %i %i %f (%f, %f).\n", evtNum, numResonances, effFunctionIdx, eff, totalAmp.real, totalAmp.imag); 
@@ -110,6 +139,10 @@ __host__ DalitzPlotPdf::DalitzPlotPdf (std::string n,
   registerObservable(_m13);
   registerObservable(eventNumber); 
 
+  parameterList.push_back (_m12);
+  parameterList.push_back (_m13);
+  parameterList.push_back (eventNumber);
+
   fptype decayConstants[5];
   
   std::vector<unsigned int> pindices;
@@ -119,19 +152,31 @@ __host__ DalitzPlotPdf::DalitzPlotPdf (std::string n,
   decayConstants[2] = decayInfo->daug2Mass;
   decayConstants[3] = decayInfo->daug3Mass;
   decayConstants[4] = decayInfo->meson_radius;
+  constants.push_back (decayInfo->motherMass);
+  constants.push_back (decayInfo->daug1Mass);
+  constants.push_back (decayInfo->daug2Mass);
+  constants.push_back (decayInfo->daug3Mass);
+  constants.push_back (decayInfo->meson_radius);
   //MEMCPY_TO_SYMBOL(functorConstants, decayConstants, 5*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice);  
 
   pindices.push_back(decayInfo->resonances.size()); 
+  constants.push_back (decayInfo->resonances.size ());
   static int cacheCount = 0; 
   cacheToUse = cacheCount++; 
   pindices.push_back(cacheToUse); 
+  constants.push_back (cacheToUse);
 
-  for (std::vector<ResonancePdf*>::iterator res = decayInfo->resonances.begin(); res != decayInfo->resonances.end(); ++res) {
+  for (std::vector<ResonancePdf*>::iterator res = decayInfo->resonances.begin(); res != decayInfo->resonances.end(); ++res)
+  {
     pindices.push_back(registerParameter((*res)->amp_real));
+    parameterList.push_back ((*res)->amp_real);
+
     pindices.push_back(registerParameter((*res)->amp_imag));
+    parameterList.push_back ((*res)->amp_imag);
+
     pindices.push_back((*res)->getFunctionIndex());
     pindices.push_back((*res)->getParameterIndex());
-    (*res)->setConstantIndex(cIndex); 
+    //(*res)->setConstantIndex(cIndex); 
     components.push_back(*res);
   }
 
@@ -185,7 +230,51 @@ __host__ void DalitzPlotPdf::setDataSize (unsigned int dataSize, unsigned int ev
   setForceIntegrals(); 
 }
 
-__host__ fptype DalitzPlotPdf::normalise () const {
+
+__host__ void DalitzPlotPdf::recursiveSetIndices ()
+{
+  //(brad): copy into our device list, will need to have a variable to determine type
+  GET_FUNCTION_ADDR(ptr_to_Polynomial);
+  host_function_table[num_device_functions] = host_fcn_ptr;
+  functionIdx = num_device_functions;
+  num_device_functions ++;
+  
+  //add efficiency function here.  Or maybe after paremeters...
+
+ //(brad): confused by this parameters variable.  Wouldn't each PDF get the current total, not the current amount?
+  //parameters = totalParams;
+  //totalParams += (2 + pindices.size() + observables.size());
+
+  //in order to figure out the next index, we will need to do some additions to get all the proper offsets
+  host_params[totalParams++] = parameterList.size ();
+  parametersIdx = totalParams;
+  for (int i = 0; i < parameterList.size (); i++)
+    host_params[totalParams++] = parameterList[i]->value;
+
+  host_params[totalParams++] = observables.size ();
+  observablesIdx = totalParams;
+  for (int i = 0; i < observables.size (); i++)
+    host_params[totalParams++] = observables[i]->value;
+
+  host_params[totalParams++] = constants.size ();
+  constantsIdx = totalParams;
+  for (int i = 0; i < constants.size (); i++)
+    host_params[totalParams++] = constants[i];
+
+  //normalisation
+  host_params[totalParams++] = 1;
+  normalisationIdx = totalParams;
+  host_params[totalParams++] = 0;
+
+  //add efficiency function here.  Or maybe after paremeters...
+  for (int i = 0; i < components.size (); i++)
+    components[i]->recursiveSetIndices ();
+
+  generateNormRange();
+}
+
+__host__ fptype DalitzPlotPdf::normalise ()
+{
   recursiveSetNormalisation(1); // Not going to normalise efficiency, 
   // so set normalisation factor to 1 so it doesn't get multiplied by zero. 
   // Copy at this time to ensure that the SpecialResonanceCalculators, which need the efficiency, 
@@ -254,16 +343,18 @@ __host__ fptype DalitzPlotPdf::normalise () const {
       devcomplex<fptype> dummy(0, 0);
       thrust::plus<devcomplex<fptype> > complexSum; 
 
-      (*(integrals[i][j])) = thrust::transform_reduce(thrust::make_zip_iterator(thrust::make_tuple(binIndex, arrayAddress)),
-						      thrust::make_zip_iterator(thrust::make_tuple(binIndex + totalBins, arrayAddress)),
-						      *(integrators[i][j]), 
-						      dummy, 
-						      complexSum);
+      //we need to pass the integration function here
+      //(*(integrals[i][j])) = thrust::transform_reduce(thrust::make_zip_iterator(thrust::make_tuple(binIndex, arrayAddress)),
+//						      thrust::make_zip_iterator(thrust::make_tuple(binIndex + totalBins, arrayAddress)),
+//						      *(integrators[i][j]), 
+//j						      dummy, 
+//						      complexSum);
     }
   } 
 
   // End of time-consuming integrals. 
   complex<fptype> sumIntegral(0, 0);
+  /*
   for (unsigned int i = 0; i < decayInfo->resonances.size(); ++i) {
     int param_i = parameters + resonanceOffset_DP + resonanceSize*i; 
     complex<fptype> amplitude_i(host_params[host_indices[param_i]], host_params[host_indices[param_i + 1]]);
@@ -275,6 +366,7 @@ __host__ fptype DalitzPlotPdf::normalise () const {
       sumIntegral += (amplitude_i * amplitude_j * complex<fptype>((*(integrals[i][j])).real, (*(integrals[i][j])).imag)); 
     }
   }
+  */
 
   fptype ret = real(sumIntegral); // That complex number is a square, so it's fully real
   double binSizeFactor = 1;
@@ -282,7 +374,7 @@ __host__ fptype DalitzPlotPdf::normalise () const {
   binSizeFactor *= ((_m13->upperlimit - _m13->lowerlimit) / _m13->numbins);
   ret *= binSizeFactor;
 
-  host_normalisation[parameters] = 1.0/ret;
+  host_params[normalisationIdx] = 1.0/ret;
   return (fptype) ret; 
 }
 
@@ -323,8 +415,9 @@ EXEC_TARGET devcomplex<fptype> SpecialResonanceIntegrator::operator () (thrust::
   fakeEvt[indices[indices[0] + 2 + 0]] = binCenterM12;
   fakeEvt[indices[indices[0] + 2 + 1]] = binCenterM13;
   unsigned int numResonances = indices[2]; 
-  int effFunctionIdx = parIndexFromResIndex_DP(numResonances); 
-  fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices); 
+  unsigned int effFunctionIdx = parIndexFromResIndex_DP(numResonances); 
+
+  fptype eff = callFunction(fakeEvt, &effFunctionIdx, indices); 
 
   // Multiplication by eff, not sqrt(eff), is correct:
   // These complex numbers will not be squared when they

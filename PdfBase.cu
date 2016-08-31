@@ -485,7 +485,14 @@ gooError gooMalloc (void** target, size_t bytes) {
   if (target[0]) return gooSuccess;
   else return gooErrorMemoryAllocation; 
 #else
-  return (gooError) cudaMalloc(target, bytes); 
+  cudaError err = cudaMalloc (target, bytes);
+  if (cudaSuccess != err)
+  {
+    printf ("Cuda malloc error in %s:%i - %s\n", __FILE__, __LINE__, cudaGetErrorString (err));
+    return gooErrorMemoryAllocation;
+  }
+
+  return gooSuccess; 
 #endif
 }
 

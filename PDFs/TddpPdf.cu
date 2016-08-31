@@ -121,7 +121,7 @@ EXEC_TARGET ThreeComplex device_Tddp_calcIntegrals (fptype m12, fptype m13, int 
   return ret; 
 }
 
-EXEC_TARGET fptype device_Tddp (fptype* evt, fptype* p, unsigned int* indices) {
+EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *p, unsigned int* indices) {
   int idx[14];
   idx[ 0] = indices[0];
   idx[ 1] = indices[1];
@@ -207,7 +207,7 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, fptype* p, unsigned int* indices) {
   //printf("(%i, %i) TDDP: %f %f %f %f %f %f %f\n", BLOCKIDX, THREADIDX, term1, term2, sumWavesA.real, sumWavesA.imag, m12, m13, _tau);
 
   // Cannot use callFunction on resolution function. 
-  int effFunctionIdx = parIndexFromResIndex(numResonances); 
+  unsigned int effFunctionIdx = parIndexFromResIndex(numResonances); 
   int resFunctionIdx = idx[5]; 
   int resFunctionPar = 2 + effFunctionIdx; 
   fptype ret = 0; 
@@ -237,9 +237,10 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, fptype* p, unsigned int* indices) {
     resFunctionPar = res_to_use + 1; 
   }
   
+  fptype *t = 0;
   ret = (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, term2, sumWavesA.real, sumWavesA.imag,
 											     _tau, _time, _xmixing, _ymixing, _sigma, 
-											     p, indices + resFunctionPar); 
+											     t, indices + resFunctionPar); 
   
   // For the reversed (mistagged) fraction, we make the 
   // interchange A <-> B. So term1 stays the same, 
@@ -256,10 +257,10 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, fptype* p, unsigned int* indices) {
     ret *= mistag; 
     ret += (1 - mistag) * (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, -term2, sumWavesA.real, -sumWavesA.imag,
 													   _tau, _time, _xmixing, _ymixing, _sigma, 
-													   p, &(indices[resFunctionPar])); 
+													   t, &(indices[resFunctionPar])); 
   }
    
-  fptype eff = callFunction(evt, indices[effFunctionIdx], indices); 
+  fptype eff = callFunction(evt, &effFunctionIdx, indices); 
   //internalDebug = 0; 
   ret *= eff;
 
@@ -537,7 +538,46 @@ __host__ void TddpPdf::setDataSize (unsigned int dataSize, unsigned int evtSize)
 #endif
 }
 
-__host__ fptype TddpPdf::normalise () const {
+__host__ void TddpPdf::recursiveSetIndices ()
+{
+  //(brad): copy into our device list, will need to have a variable to determine type
+  GET_FUNCTION_ADDR(ptr_to_Polynomial);
+  host_function_table[num_device_functions] = host_fcn_ptr;
+  functionIdx = num_device_functions;
+  num_device_functions ++;
+ //(brad): confused by this parameters variable.  Wouldn't each PDF get the current total, not the current amount?
+  //parameters = totalParams;
+  //totalParams += (2 + pindices.size() + observables.size());
+
+  //in order to figure out the next index, we will need to do some additions to get all the proper offsets
+  host_params[totalParams++] = parameterList.size ();
+  parametersIdx = totalParams;
+  for (int i = 0; i < parameterList.size (); i++)
+    host_params[totalParams++] = parameterList[i]->value;
+
+  host_params[totalParams++] = observables.size ();
+  observablesIdx = totalParams;
+  for (int i = 0; i < observables.size (); i++)
+    host_params[totalParams++] = observables[i]->value;
+
+  host_params[totalParams++] = constants.size ();
+  constantsIdx = totalParams;
+  for (int i = 0; i < constants.size (); i++)
+    host_params[totalParams++] = constants[i];
+
+  //normalisation
+  host_params[totalParams++] = 1;
+  normalisationIdx = totalParams;
+  host_params[totalParams++] = 0;
+
+  for (int i = 0; i < components.size (); i++)
+    components[i]->recursiveSetIndices ();
+
+  generateNormRange();
+}
+
+__host__ fptype TddpPdf::normalise ()
+{
   recursiveSetNormalisation(1); // Not going to normalise efficiency, 
   // so set normalisation factor to 1 so it doesn't get multiplied by zero. 
   // Copy at this time to ensure that the SpecialWaveCalculators, which need the efficiency, 
@@ -739,10 +779,10 @@ EXEC_TARGET ThreeComplex SpecialDalitzIntegrator::operator () (thrust::tuple<int
   fakeEvt[indices[indices[0] + 2 + 2]] = binCenterM12;
   fakeEvt[indices[indices[0] + 2 + 3]] = binCenterM13;
   unsigned int numResonances = indices[6]; 
-  int effFunctionIdx = parIndexFromResIndex(numResonances); 
+  unsigned int effFunctionIdx = parIndexFromResIndex(numResonances); 
   //if (thrust::get<0>(t) == 19840) {internalDebug1 = BLOCKIDX; internalDebug2 = THREADIDX;}
   //fptype eff = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[effFunctionIdx]])))(fakeEvt, cudaArray, paramIndices + indices[effFunctionIdx + 1]);
-  fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices); 
+  fptype eff = callFunction(fakeEvt, &effFunctionIdx, indices); 
   //if (thrust::get<0>(t) == 19840) {
   //internalDebug1 = -1; 
   //internalDebug2 = -1;
