@@ -164,8 +164,8 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int
 
   for (int i = 0; i < numResonances; ++i) {
     int paramIndex  = parIndexFromResIndex(i);
-    fptype amp_real = p[indices[paramIndex+0]];
-    fptype amp_imag = p[indices[paramIndex+1]];
+    fptype amp_real = cudaArray[indices[paramIndex+0]];
+    fptype amp_imag = cudaArray[indices[paramIndex+1]];
 
     WaveHolder wh = cWaves[cacheToUse][enr + i];
 
@@ -238,9 +238,9 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int
     resFunctionPar = res_to_use + 1; 
   }
   
-  ret = (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, term2, sumWavesA.real, sumWavesA.imag,
-											     _tau, _time, _xmixing, _ymixing, _sigma, 
-											     p, indices + resFunctionPar); 
+  //ret = (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, term2, sumWavesA.real, sumWavesA.imag,
+//											     _tau, _time, _xmixing, _ymixing, _sigma, 
+//											     p, indices + resFunctionPar); 
   
   // For the reversed (mistagged) fraction, we make the 
   // interchange A <-> B. So term1 stays the same, 
@@ -255,9 +255,9 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int
     // of having the correct sign, given that we have a correctly reconstructed D meson. 
     mistag = evt[indices[md0_offset + 7 + idx[0]]]; 
     ret *= mistag; 
-    ret += (1 - mistag) * (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, -term2, sumWavesA.real, -sumWavesA.imag,
-													   _tau, _time, _xmixing, _ymixing, _sigma, 
-													   p, &(indices[resFunctionPar])); 
+    //ret += (1 - mistag) * (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, -term2, sumWavesA.real, -sumWavesA.imag,
+//													   _tau, _time, _xmixing, _ymixing, _sigma, 
+//													   p, &(indices[resFunctionPar])); 
   }
    
   //fptype eff = callFunction(evt, indices[effFunctionIdx], indices); 
@@ -539,7 +539,8 @@ __host__ void TddpPdf::setDataSize (unsigned int dataSize, unsigned int evtSize)
 #endif
 }
 
-__host__ fptype TddpPdf::normalise () const {
+__host__ fptype TddpPdf::normalise ()
+{
   recursiveSetNormalisation(1); // Not going to normalise efficiency, 
   // so set normalisation factor to 1 so it doesn't get multiplied by zero. 
   // Copy at this time to ensure that the SpecialWaveCalculators, which need the efficiency, 
