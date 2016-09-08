@@ -58,11 +58,18 @@ public:
 			  Variable* sigma,
 			  unsigned int cyc);
 
+  __host__ virtual void recursiveSetIndices ();
+  __host__ inline int getNumberParameters () const { return numParameters; }
+
 private:
   void setConstantIndex (unsigned int idx) {host_indices[parameters + 1] = idx;}
 
   Variable* amp_real;
   Variable* amp_imag;
+
+  bool bw, gs, lass, nr, gauss;
+  int numParameters;
+
   /*
   Variable* mass;
   Variable* width;

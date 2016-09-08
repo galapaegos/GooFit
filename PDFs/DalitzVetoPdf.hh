@@ -14,6 +14,8 @@ class DalitzVetoPdf : public GooPdf {
 public:
   __host__ DalitzVetoPdf (std::string n,  Variable* _x, Variable* _y, Variable* motherM, Variable* d1m, Variable* d2m, Variable* d3m, vector<VetoInfo*> vetos);
 
+  __host__ virtual void recursiveSetIndices();
+
 private:
 
 };

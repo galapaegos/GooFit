@@ -74,9 +74,9 @@ EXEC_TARGET inline int parIndexFromResIndex (const int &resIndex) {
 }
 
 EXEC_TARGET devcomplex<fptype> getResonanceAmplitude (fptype m12, fptype m13, fptype m23, 
-						     unsigned int functionIdx, unsigned int pIndex) {
-  resonance_function_ptr func = reinterpret_cast<resonance_function_ptr>(device_function_table[functionIdx]);
-  return (*func)(m12, m13, m23, &pIndex); 
+						     unsigned int *functionIdx, unsigned int *pIndex) {
+  resonance_function_ptr func = reinterpret_cast<resonance_function_ptr>(device_function_table[*functionIdx]);
+  return (*func)(m12, m13, m23, pIndex); 
 }
 
 EXEC_TARGET ThreeComplex device_Tddp_calcIntegrals (fptype m12, fptype m13, int res_i, int res_j, fptype* p, unsigned int* indices) {
@@ -109,13 +109,13 @@ EXEC_TARGET ThreeComplex device_Tddp_calcIntegrals (fptype m12, fptype m13, int 
   //fptype amp_imag             = p[indices[parameter_i+1]];
   unsigned int functn_i = indices[parameter_i+2];
   unsigned int params_i = indices[parameter_i+3];
-  devcomplex<fptype> ai = getResonanceAmplitude(m12, m13, m23, functn_i, params_i);
-  devcomplex<fptype> bi = getResonanceAmplitude(m13, m12, m23, functn_i, params_i);
+  devcomplex<fptype> ai = getResonanceAmplitude(m12, m13, m23, &functn_i, &params_i);
+  devcomplex<fptype> bi = getResonanceAmplitude(m13, m12, m23, &functn_i, &params_i);
 
   unsigned int functn_j = indices[parameter_j+2];
   unsigned int params_j = indices[parameter_j+3];
-  devcomplex<fptype> aj = conj(getResonanceAmplitude(m12, m13, m23, functn_j, params_j));
-  devcomplex<fptype> bj = conj(getResonanceAmplitude(m13, m12, m23, functn_j, params_j)); 
+  devcomplex<fptype> aj = conj(getResonanceAmplitude(m12, m13, m23, &functn_j, &params_j));
+  devcomplex<fptype> bj = conj(getResonanceAmplitude(m13, m12, m23, &functn_j, &params_j)); 
 
   ret = ThreeComplex((ai*aj).real, (ai*aj).imag, (ai*bj).real, (ai*bj).imag, (bi*bj).real, (bi*bj).imag);
   return ret; 
@@ -835,8 +835,8 @@ EXEC_TARGET WaveHolder SpecialWaveCalculator::operator () (thrust::tuple<int, fp
   unsigned int functn_i = indices[parameter_i+2];
   unsigned int params_i = indices[parameter_i+3];
 
-  devcomplex<fptype> ai = getResonanceAmplitude(m12, m13, m23, functn_i, params_i);
-  devcomplex<fptype> bi = getResonanceAmplitude(m13, m12, m23, functn_i, params_i);
+  devcomplex<fptype> ai = getResonanceAmplitude(m12, m13, m23, &functn_i, &params_i);
+  devcomplex<fptype> bi = getResonanceAmplitude(m13, m12, m23, &functn_i, &params_i);
 
   //printf("Amplitudes %f, %f => (%f %f) (%f %f)\n", m12, m13, ai.real, ai.imag, bi.real, bi.imag);
 

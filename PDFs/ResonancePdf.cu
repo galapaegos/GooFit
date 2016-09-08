@@ -390,7 +390,7 @@ ResonancePdf::ResonancePdf (string name,
 						unsigned int cyc) 
   : GooPdf(0, name)
   , amp_real(ar)
-  , amp_imag(ai)
+  , amp_imag(ai), bw (true), gs (false), lass (false), nr (false), gauss (false), numParameters (0)
 {
   vector<unsigned int> pindices; 
   pindices.push_back(0); 
@@ -403,6 +403,12 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(registerParameter(width)); 
   pindices.push_back(sp);
   pindices.push_back(cyc); 
+
+  parameterList.push_back (mass);
+  parameterList.push_back (width);
+
+  constants.push_back (sp);
+  constants.push_back (cyc);
 
   GET_FUNCTION_ADDR(ptr_to_RBW);
   initialise(pindices); 
@@ -417,7 +423,7 @@ ResonancePdf::ResonancePdf (string name,
 						unsigned int cyc) 
   : GooPdf(0, name)
   , amp_real(ar)
-  , amp_imag(ai)
+  , amp_imag(ai), bw (false), gs (true), lass (false), nr (false), gauss (false), numParameters (0)
 {
   // Same as BW except for function pointed to. 
   vector<unsigned int> pindices; 
@@ -426,6 +432,12 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(registerParameter(width)); 
   pindices.push_back(sp);
   pindices.push_back(cyc); 
+
+  parameterList.push_back (mass);
+  parameterList.push_back (width);
+
+  constants.push_back (sp);
+  constants.push_back (cyc);
 
   GET_FUNCTION_ADDR(ptr_to_GOUSAK);
   initialise(pindices); 
@@ -441,7 +453,7 @@ ResonancePdf::ResonancePdf (string name,
                                                 unsigned int cyc)
   : GooPdf(0, name)
   , amp_real(ar)
-  , amp_imag(ai)
+  , amp_imag(ai), bw (false), gs (false), lass (true), nr (false), gauss (false), numParameters (0)
 {
   // Same as BW except for function pointed to.
   vector<unsigned int> pindices;
@@ -450,6 +462,12 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(registerParameter(width));
   pindices.push_back(sp);
   pindices.push_back(cyc);
+
+  parameterList.push_back (mass);
+  parameterList.push_back (width);
+
+  constants.push_back (sp);
+  constants.push_back (cyc);
 
   GET_FUNCTION_ADDR(ptr_to_LASS);
   initialise(pindices);
@@ -461,7 +479,7 @@ ResonancePdf::ResonancePdf (string name,
 						Variable* ai) 
   : GooPdf(0, name)
   , amp_real(ar)
-  , amp_imag(ai)
+  , amp_imag(ai), bw (false), gs (false), lass (false), nr (true), gauss (false), numParameters (0)
 {
   vector<unsigned int> pindices; 
   pindices.push_back(0); 
@@ -479,7 +497,7 @@ ResonancePdf::ResonancePdf (string name,
 						unsigned int cyc) 
   : GooPdf(0, name)
   , amp_real(ar)
-  , amp_imag(ai)
+  , amp_imag(ai), bw (false), gs (false), lass (false), nr (false), gauss (true), numParameters (0)
 {
   vector<unsigned int> pindices; 
   pindices.push_back(0); 
@@ -489,9 +507,53 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(registerParameter(sigma)); 
   pindices.push_back(cyc); 
 
+  parameterList.push_back (mean);
+  parameterList.push_back (sigma);
+
+  constants.push_back (cyc);
+
   GET_FUNCTION_ADDR(ptr_to_GAUSSIAN);
   initialise(pindices); 
 
 }
 
+__host__ void ResonancePdf::recursiveSetIndices ()
+{
+  //(brad): copy into our device list, will need to have a variable to determine type
+  if (bw)
+    GET_FUNCTION_ADDR(ptr_to_RBW);
+  else if (gs)
+    GET_FUNCTION_ADDR(ptr_to_GOUSAK);
+  else if (lass)
+    GET_FUNCTION_ADDR(ptr_to_LASS);
+  else if (nr)
+    GET_FUNCTION_ADDR(ptr_to_NONRES);
+  else if (gauss)
+    GET_FUNCTION_ADDR(ptr_to_GAUSSIAN);
+
+  host_function_table[num_device_functions] = host_fcn_ptr;
+  functionIdx = num_device_functions;
+  num_device_functions ++;
+ //(brad): confused by this parameters variable.  Wouldn't each PDF get the current total, not the current amount?
+  //parameters = totalParams;
+  //totalParams += (2 + pindices.size() + observables.size());
+
+  //in order to figure out the next index, we will need to do some additions to get all the proper offsets
+  host_params[totalParams++] = parameterList.size ();
+  parametersIdx = totalParams;
+  for (int i = 0; i < parameterList.size (); i++)
+    host_params[totalParams++] = parameterList[i]->value;
+
+  host_params[totalParams++] = observables.size ();
+  observablesIdx = totalParams;
+  for (int i = 0; i < observables.size (); i++)
+    host_params[totalParams++] = observables[i]->value;
+
+  host_params[totalParams++] = constants.size ();
+  constantsIdx = totalParams;
+  for (int i = 0; i < constants.size (); i++)
+    host_params[totalParams++] = constants[i];
+
+  numParameters = parameterList.size () + 1 + observables.size () + 1 + constants.size () + 1;
+}
 
