@@ -1,7 +1,8 @@
 #include "GlobalCudaDefines.hh"
 #include "PdfBase.hh" 
 
-fptype* dev_event_array;
+fptype* dev_event_array = 0;
+fptype* binCenters = 0;
 fptype host_normalisation[maxParams];
 fptype host_params[maxParams];
 unsigned int host_indices[maxParams]; 
@@ -36,7 +37,9 @@ __host__ void PdfBase::checkInitStatus (std::vector<std::string>& unInited) cons
 }
 
 __host__ void PdfBase::recursiveSetNormalisation (fptype norm) const {
-  host_normalisation[parameters] = norm;
+  //
+  //host_normalisation[parameters] = norm;
+  host_params[normalisationIdx] = norm;
   for (unsigned int i = 0; i < components.size(); ++i) {
     components[i]->recursiveSetNormalisation(norm); 
   }
