@@ -381,9 +381,9 @@ void runToyFit (std::string toyFileName) {
 }
 
 int main (int argc, char** argv) {
-  size_t stack;
-  cudaDeviceGetLimit (&stack, cudaLimitStackSize);
-  printf ("stack: %i\n", stack);
+  //size_t stack;
+  //cudaDeviceGetLimit (&stack, cudaLimitStackSize);
+  //printf ("stack: %i\n", stack);
   //cudaDeviceSetLimit(cudaLimitStackSize, 4096);
 
 #ifdef TARGET_MPI

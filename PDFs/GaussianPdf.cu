@@ -2,11 +2,23 @@
 
 EXEC_TARGET fptype device_Gaussian (fptype* evt, unsigned int* funcIdx, unsigned int* indices)
 {
+  //int tidx = blockDim.x *blockIdx.x + threadIdx.x;
+
   fptype x = evt[0];//indices[2 + indices[0]]]; 
+
+  //__shared__ fptype idx[2];
+  //if (THREADIDX == 0)
+  //{
+  //  idx[0] = cudaArray[*indices + 1];
+  //  idx[1] = cudaArray[*indices + 2];
+  //}
+
+   //__syncthreads();
   
   fptype mean = cudaArray[*indices + 1];
   fptype sigma = cudaArray[*indices + 2];
 
+  //fptype ret = EXP(-0.5*(x-idx[0])*(x-idx[0])/(idx[1]*idx[1]));
   fptype ret = EXP(-0.5*(x-mean)*(x-mean)/(sigma*sigma));
 
   *indices += 8;

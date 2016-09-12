@@ -22,27 +22,45 @@ EXEC_TARGET fptype device_Polynomial (fptype* evt, unsigned int *funcIdx, unsign
 }
 
 EXEC_TARGET fptype device_OffsetPolynomial (fptype* evt, unsigned int *funcIdx, unsigned int* indices) {
-  int numParams = indices[0]; 
-  int lowestDegree = indices[1]; 
+  //int numParams = indices[0]; 
+  //int lowestDegree = indices[1]; 
 
-  fptype x = evt[indices[2 + numParams]]; 
-  x -= cudaArray[*indices + numParams]; 
+  int numParams = cudaArray[*indices + 0];
+  int numObs = cudaArray[*indices + numParams + 1];
+  int numCons = cudaArray[*indices + numParams + 1 + numObs + 1];
+  int lowestDegree = cudaArray[*indices + numParams + 1 + numObs + 1 + 1];
+
+  //fptype x = evt[indices[2 + numParams]];
+  fptype x = evt[0];
+  //todo: (brad) I think this is pointing to an observable?
+  //x -= cudaArray[*indices + numParams]; 
+  x -= numParams;
+
   fptype ret = 0; 
   for (int i = 2; i < numParams; ++i) {
     ret += cudaArray[*indices + i] * POW(x, lowestDegree + i - 2); 
   }
+
+  *indices += 7;
+  *funcIdx += 1;
 
   return ret; 
 }
 
 EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, unsigned int* funcIdx, unsigned int* indices) {
   // Structure is nP, maxDegree, offset1, offset2, ..., coeff1, coeff2, ..., nO, o1, o2, ... 
-  int idx[2];
-  idx[0] = indices[0];
-  idx[1] = indices[1];
+  //int idx[2];
+  //idx[0] = indices[0];
+  //idx[1] = indices[1];
 
-  int numObservables = indices[idx[0] + 1]; 
-  int maxDegree = idx[1] + 1; 
+  //int numObservables = indices[idx[0] + 1]; 
+  //int maxDegree = idx[1] + 1; 
+
+  int numParams = cudaArray[*indices + 0];
+  int numObs = cudaArray[*indices + numParams + 1];
+  int numCons = cudaArray[*indices + numParams + 1 + numObs + 1];
+  int maxDegree = cudaArray[*indices + numParams + 1 + numObs + 1 + 1];
+
   // Only appears in construction (maxDegree + 1) or (x > maxDegree), so
   // may as well add the one and use >= instead. 
 
@@ -50,10 +68,11 @@ EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, unsigned int* funcIdx, u
   // whose sum of indices is greater than maxDegree. Notice that this is increasingly
   // inefficient as n grows, since a larger proportion of boxes will be skipped. 
   int numBoxes = 1;
-  for (int i = 0; i < numObservables; ++i) numBoxes *= maxDegree; 
+  for (int i = 0; i < numObs; ++i)
+    numBoxes *= maxDegree; 
 
-  int coeffNumber = 2 + numObservables; // Index of first coefficient is 2 + nO, not 1 + nO, due to maxDegree. (nO comes from offsets.) 
-  fptype ret = cudaArray[*indices + 1 + coeffNumber++]; // Coefficient of constant term. 
+  int coeffNumber = 2; // Index of first coefficient is 2 + nO, not 1 + nO, due to maxDegree. (nO comes from offsets.) 
+  fptype ret = cudaArray[*indices + numParams + 1 + numObs + 1 + coeffNumber++]; // Coefficient of constant term. 
   for (int i = 1; i < numBoxes; ++i) { // Notice skip of inmost 'box' in the pyramid, corresponding to all powers zero, already accounted for. 
     fptype currTerm = 1; 
     int currIndex = i; 
@@ -62,13 +81,15 @@ EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, unsigned int* funcIdx, u
     //if ((BLOCKIDX == internalDebug1) && (THREADIDX == internalDebug2)) 
     //if ((1 > (int) floor(0.5 + evt[8])) && (gpuDebug & 1) && (paramIndices + debugParamIndex == indices))
     //printf("[%i, %i] Start box %i %f %f:\n", BLOCKIDX, THREADIDX, i, ret, evt[8]);
-    for (int j = 0; j < numObservables; ++j) {
-      int tmp[2];
-      tmp[0] = indices[2 + j];
-      tmp[1] = indices[2 + idx[0] + j];
+    for (int j = 0; j < numObs; ++j) {
+      //int tmp[2];
+      //tmp[0] = indices[2 + j];
+      //tmp[1] = indices[2 + idx[0] + j];
 
-      fptype offset = cudaArray[tmp[0]]; // x0, y0, z0... 
-      fptype x = evt[tmp[1]]; // x, y, z...    
+      //todo (brad): need to debug these, what is offset and x supposed to be?
+      fptype offset = cudaArray[*indices + numParams + 1 + i]; // x0, y0, z0... 
+      //todo (brad): need to debug these, what is offset and x supposed to be?
+      fptype x = evt[0]; // x, y, z...    
 
       x -= offset; 
       int currPower = currIndex % maxDegree; 
@@ -85,7 +106,7 @@ EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, unsigned int* funcIdx, u
     //printf(") End box %i\n", i);
     // All threads should hit this at the same time and with the same result. No branching. 
     if (sumOfIndices >= maxDegree) continue; 
-    fptype coefficient = cudaArray[*indices + coeffNumber++]; // Coefficient from MINUIT
+    fptype coefficient = cudaArray[*indices + numParams + 1 + numObs + 1 + coeffNumber++]; // Coefficient from MINUIT
     //if ((gpuDebug & 1) && (THREADIDX == 50) && (BLOCKIDX == 3))
     //if ((BLOCKIDX == internalDebug1) && (THREADIDX == internalDebug2)) 
     //if ((1 > (int) floor(0.5 + evt[8])) && (gpuDebug & 1) && (paramIndices + debugParamIndex == indices))
@@ -96,6 +117,9 @@ EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, unsigned int* funcIdx, u
 
   //if ((1 > (int) floor(0.5 + evt[8])) && (gpuDebug & 1) && (paramIndices + debugParamIndex == indices))
   //printf("Final polynomial: %f\n", ret); 
+
+  *indices += numParams + numObs + numCons + 2;
+  *funcIdx += 1;
 
   //if (0 > ret) ret = 0; 
   return ret; 
