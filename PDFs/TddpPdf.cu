@@ -121,11 +121,7 @@ EXEC_TARGET ThreeComplex device_Tddp_calcIntegrals (fptype m12, fptype m13, int 
   return ret; 
 }
 
-<<<<<<< HEAD
 EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int* indices) {
-=======
-EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *p, unsigned int* indices) {
->>>>>>> 1c249932b0c391c54dfdd4d486b61aa9111458d2
   int idx[14];
   idx[ 0] = indices[0];
   idx[ 1] = indices[1];
@@ -242,16 +238,9 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *p, unsigned int* indi
     resFunctionPar = res_to_use + 1; 
   }
   
-<<<<<<< HEAD
   //ret = (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, term2, sumWavesA.real, sumWavesA.imag,
 //											     _tau, _time, _xmixing, _ymixing, _sigma, 
 //											     p, indices + resFunctionPar); 
-=======
-  fptype *t = 0;
-  ret = (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, term2, sumWavesA.real, sumWavesA.imag,
-											     _tau, _time, _xmixing, _ymixing, _sigma, 
-											     t, indices + resFunctionPar); 
->>>>>>> 1c249932b0c391c54dfdd4d486b61aa9111458d2
   
   // For the reversed (mistagged) fraction, we make the 
   // interchange A <-> B. So term1 stays the same, 
@@ -259,7 +248,8 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *p, unsigned int* indi
   // Efficiency remains the same for the mistagged part,
   // because it depends on the momenta of the pi+ and pi-,
   // which don't change even though we tagged a D0 as D0bar. 
-  
+
+  fptype t = 0;  
   fptype mistag = cudaArray[idx[1] + 5]; 
   if (mistag > 0) { // This should be either true or false for all events, so no branch is caused.
     // See header file for explanation of 'mistag' variable - it is actually the probability
@@ -267,17 +257,9 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *p, unsigned int* indi
     mistag = evt[indices[md0_offset + 7 + idx[0]]]; 
     ret *= mistag; 
 
-
-										   _tau, _time, _xmixing, _ymixing, _sigma, 
-								   p, &(indices[resFunctionPar])); 
-
-
-
-
-
     ret += (1 - mistag) * (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, -term2, sumWavesA.real, -sumWavesA.imag,
 													   _tau, _time, _xmixing, _ymixing, _sigma, 
-													   t, &(indices[resFunctionPar])); 
+													   &t, &(indices[resFunctionPar])); 
   }
    
   fptype eff = callFunction(evt, &effFunctionIdx, indices); 
@@ -807,8 +789,6 @@ EXEC_TARGET ThreeComplex SpecialDalitzIntegrator::operator () (thrust::tuple<int
   unsigned int funcIdx = 0;
   fptype eff = callFunction(fakeEvt, &funcIdx, indices); 
   //fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices); 
-
-  fptype eff = callFunction(fakeEvt, &effFunctionIdx, indices); 
 
   //if (thrust::get<0>(t) == 19840) {
   //internalDebug1 = -1; 

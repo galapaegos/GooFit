@@ -390,7 +390,7 @@ ResonancePdf::ResonancePdf (string name,
 						unsigned int cyc) 
   : GooPdf(0, name)
   , amp_real(ar)
-  , amp_imag(ai), bw (true), gs (false), lass (false), nr (false), gauss (false), numParameters (0)
+  , amp_imag(ai), bw (true), gs (false), lass (false), nr (false), gauss (false)
 {
   vector<unsigned int> pindices; 
   pindices.push_back(0); 
@@ -404,6 +404,8 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(sp);
   pindices.push_back(cyc); 
 
+  untracked.push_back (ar);
+  untracked.push_back (ai);
   parameterList.push_back (mass);
   parameterList.push_back (width);
 
@@ -423,7 +425,7 @@ ResonancePdf::ResonancePdf (string name,
 						unsigned int cyc) 
   : GooPdf(0, name)
   , amp_real(ar)
-  , amp_imag(ai), bw (false), gs (true), lass (false), nr (false), gauss (false), numParameters (0)
+  , amp_imag(ai), bw (false), gs (true), lass (false), nr (false), gauss (false)
 {
   // Same as BW except for function pointed to. 
   vector<unsigned int> pindices; 
@@ -433,6 +435,8 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(sp);
   pindices.push_back(cyc); 
 
+  untracked.push_back (ar);
+  untracked.push_back (ai);
   parameterList.push_back (mass);
   parameterList.push_back (width);
 
@@ -453,7 +457,7 @@ ResonancePdf::ResonancePdf (string name,
                                                 unsigned int cyc)
   : GooPdf(0, name)
   , amp_real(ar)
-  , amp_imag(ai), bw (false), gs (false), lass (true), nr (false), gauss (false), numParameters (0)
+  , amp_imag(ai), bw (false), gs (false), lass (true), nr (false), gauss (false)
 {
   // Same as BW except for function pointed to.
   vector<unsigned int> pindices;
@@ -463,6 +467,8 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(sp);
   pindices.push_back(cyc);
 
+  untracked.push_back (ar);
+  untracked.push_back (ai);
   parameterList.push_back (mass);
   parameterList.push_back (width);
 
@@ -479,12 +485,22 @@ ResonancePdf::ResonancePdf (string name,
 						Variable* ai) 
   : GooPdf(0, name)
   , amp_real(ar)
-  , amp_imag(ai), bw (false), gs (false), lass (false), nr (true), gauss (false), numParameters (0)
+  , amp_imag(ai), bw (false), gs (false), lass (false), nr (true), gauss (false)
 {
   vector<unsigned int> pindices; 
   pindices.push_back(0); 
   // Dummy index for constants - won't use it, but calling 
   // functions can't know that and will call setConstantIndex anyway. 
+  untracked.push_back (ar);
+  untracked.push_back (ai);
+  untracked.push_back (ar);
+  untracked.push_back (ai);
+  untracked.push_back (ar);
+  untracked.push_back (ai);
+  
+  constants.push_back (0);
+  constants.push_back (0);
+  
   GET_FUNCTION_ADDR(ptr_to_NONRES);
   initialise(pindices); 
 }
@@ -497,7 +513,7 @@ ResonancePdf::ResonancePdf (string name,
 						unsigned int cyc) 
   : GooPdf(0, name)
   , amp_real(ar)
-  , amp_imag(ai), bw (false), gs (false), lass (false), nr (false), gauss (true), numParameters (0)
+  , amp_imag(ai), bw (false), gs (false), lass (false), nr (false), gauss (true)
 {
   vector<unsigned int> pindices; 
   pindices.push_back(0); 
@@ -507,10 +523,13 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(registerParameter(sigma)); 
   pindices.push_back(cyc); 
 
+  untracked.push_back (ar);
+  untracked.push_back (ai);
   parameterList.push_back (mean);
   parameterList.push_back (sigma);
 
   constants.push_back (cyc);
+  constants.push_back (0);
 
   GET_FUNCTION_ADDR(ptr_to_GAUSSIAN);
   initialise(pindices); 
@@ -538,9 +557,12 @@ __host__ void ResonancePdf::recursiveSetIndices ()
   //parameters = totalParams;
   //totalParams += (2 + pindices.size() + observables.size());
 
+  //(brad)additional vector to keep track of variables that are not constant
   //in order to figure out the next index, we will need to do some additions to get all the proper offsets
-  host_params[totalParams++] = parameterList.size ();
+  host_params[totalParams++] = untracked.size () + parameterList.size ();
   parametersIdx = totalParams;
+  for (int i = 0; i < untracked.size (); i++)
+    host_params[totalParams++] = untracked[i]->value;
   for (int i = 0; i < parameterList.size (); i++)
     host_params[totalParams++] = parameterList[i]->value;
 
@@ -553,7 +575,5 @@ __host__ void ResonancePdf::recursiveSetIndices ()
   constantsIdx = totalParams;
   for (int i = 0; i < constants.size (); i++)
     host_params[totalParams++] = constants[i];
-
-  numParameters = parameterList.size () + 1 + observables.size () + 1 + constants.size () + 1;
 }
 

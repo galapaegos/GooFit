@@ -145,6 +145,7 @@ __host__ PolynomialPdf::PolynomialPdf (string n, Variable* _x, vector<Variable*>
   } 
   if (x0) {
     pindices.push_back(registerParameter(x0));
+    parameterList.push_back (x0);
     GET_FUNCTION_ADDR(ptr_to_OffsetPolynomial);
   }
   else {
@@ -166,6 +167,7 @@ __host__ PolynomialPdf::PolynomialPdf (string n, vector<Variable*> obses, vector
   for (unsigned int i = 0; i < obses.size(); ++i) {
     registerObservable(obses[i]);
     numParameters *= (maxDegree + 1 + i); 
+    observables.push_back (obses[i]);
   }
   for (int i = observables.size(); i > 1; --i) numParameters /= i; 
 
@@ -192,9 +194,11 @@ __host__ PolynomialPdf::PolynomialPdf (string n, vector<Variable*> obses, vector
   pindices.push_back(maxDegree);
   for (vector<Variable*>::iterator o = offsets.begin(); o != offsets.end(); ++o) {
     pindices.push_back(registerParameter(*o)); 
+    parameterList.push_back (*o);
   }
   for (vector<Variable*>::iterator c = coeffs.begin(); c != coeffs.end(); ++c) {
     pindices.push_back(registerParameter(*c));
+    parameterList.push_back (*c);
   }
 
   GET_FUNCTION_ADDR(ptr_to_MultiPolynomial);

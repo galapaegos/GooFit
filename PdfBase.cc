@@ -2,7 +2,7 @@
 #include "PdfBase.hh" 
 
 fptype* dev_event_array = 0;
-fptype* binCenters = 0;
+//fptype* binCenters = 0;
 fptype host_normalisation[maxParams];
 fptype host_params[maxParams];
 unsigned int host_indices[maxParams]; 

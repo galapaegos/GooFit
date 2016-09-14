@@ -33,10 +33,10 @@ private:
   DEVICE_VECTOR<devcomplex<fptype> >* cachedWaves; // Caches the BW values for each event.
   devcomplex<fptype>*** integrals; // Caches the integrals of the BW waves for each combination of resonances. 
 
-  int integrateIdx;
-  int integrateParams;
-  int calculateIdx;
-  int calculateParams;
+  int resonanceIdx;
+  int resonanceParams;
+  int efficiencyIdx;
+  int efficiencyParams;
 
   bool* redoIntegral;
   mutable bool forceRedoIntegrals; 

@@ -59,16 +59,20 @@ public:
 			  unsigned int cyc);
 
   __host__ virtual void recursiveSetIndices ();
-  __host__ inline int getNumberParameters () const { return numParameters; }
 
 private:
-  void setConstantIndex (unsigned int idx) {host_indices[parameters + 1] = idx;}
+  //(brad): this isn't used anymore
+  inline void setConstantIndex (unsigned int idx)
+  {
+    //host_indices[parameters + 1] = idx;
+  }
 
   Variable* amp_real;
   Variable* amp_imag;
+  
+  std::vector<Variable*> untracked;
 
   bool bw, gs, lass, nr, gauss;
-  int numParameters;
 
   /*
   Variable* mass;
