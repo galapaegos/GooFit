@@ -15,6 +15,7 @@ public:
   // coherent sum. The caching method requires that it be done this way or the ProdPdf
   // normalisation will get *really* confused and give wrong answers. 
 
+  __host__ virtual void getParameters(parCont &ret) const;
   __host__ virtual void recursiveSetIndices ();
   __host__ virtual fptype normalise ();
   __host__ void setDataSize (unsigned int dataSize, unsigned int evtSize = 3); 

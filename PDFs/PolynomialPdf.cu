@@ -59,7 +59,7 @@ EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, unsigned int* funcIdx, u
   int numParams = cudaArray[*indices + 0];
   int numObs = cudaArray[*indices + numParams + 1];
   int numCons = cudaArray[*indices + numParams + 1 + numObs + 1];
-  int maxDegree = cudaArray[*indices + numParams + 1 + numObs + 1 + 1];
+  int maxDegree = cudaArray[*indices + numParams + 1 + numObs + 1 + 1] + 1;
 
   // Only appears in construction (maxDegree + 1) or (x > maxDegree), so
   // may as well add the one and use >= instead. 
@@ -141,14 +141,16 @@ __host__ PolynomialPdf::PolynomialPdf (string n, Variable* _x, vector<Variable*>
   constants.push_back (lowestDegree);
   for (vector<Variable*>::iterator v = weights.begin(); v != weights.end(); ++v) {
     pindices.push_back(registerParameter(*v));
-    parameterList.push_back (*v);
+    //parameterList.push_back (*v);
   } 
   if (x0) {
+    polyType = 1;
     pindices.push_back(registerParameter(x0));
-    parameterList.push_back (x0);
+    //parameterList.push_back (x0);
     GET_FUNCTION_ADDR(ptr_to_OffsetPolynomial);
   }
   else {
+    polyType = 0;
     GET_FUNCTION_ADDR(ptr_to_Polynomial);
   }
   initialise(pindices); 
@@ -192,15 +194,17 @@ __host__ PolynomialPdf::PolynomialPdf (string n, vector<Variable*> obses, vector
 
   vector<unsigned int> pindices;
   pindices.push_back(maxDegree);
+  constants.push_back (maxDegree);
   for (vector<Variable*>::iterator o = offsets.begin(); o != offsets.end(); ++o) {
     pindices.push_back(registerParameter(*o)); 
-    parameterList.push_back (*o);
+    //parameterList.push_back (*o);
   }
   for (vector<Variable*>::iterator c = coeffs.begin(); c != coeffs.end(); ++c) {
     pindices.push_back(registerParameter(*c));
-    parameterList.push_back (*c);
+    //parameterList.push_back (*c);
   }
 
+  polyType = 2;
   GET_FUNCTION_ADDR(ptr_to_MultiPolynomial);
   initialise(pindices); 
 }
@@ -212,7 +216,13 @@ PolynomialPdf::~PolynomialPdf ()
 __host__ void PolynomialPdf::recursiveSetIndices ()
 {
   //(brad): copy into our device list, will need to have a variable to determine type
-  GET_FUNCTION_ADDR(ptr_to_Polynomial);
+  if (polyType == 0)
+    GET_FUNCTION_ADDR(ptr_to_Polynomial);
+  else if (polyType == 1)
+    GET_FUNCTION_ADDR(ptr_to_OffsetPolynomial);
+  else if (polyType == 2)
+    GET_FUNCTION_ADDR(ptr_to_MultiPolynomial);
+  
   host_function_table[num_device_functions] = host_fcn_ptr;
   functionIdx = num_device_functions;
   num_device_functions ++;

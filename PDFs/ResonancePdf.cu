@@ -86,25 +86,26 @@ EXEC_TARGET fptype spinFactor (unsigned int spin, fptype motherMass, fptype daug
   return sFactor; 
 }
 
-EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsigned int* indices) {
-  int idx[6];
-  idx[0] = indices[0];
-  idx[1] = indices[1];
-  idx[2] = indices[2];
-  idx[3] = indices[3];
-  idx[4] = indices[4];
-  idx[5] = indices[5];
-
-  fptype motherMass             = cudaArray[idx[1]+0];
-  fptype daug1Mass              = cudaArray[idx[1]+1];
-  fptype daug2Mass              = cudaArray[idx[1]+2];
-  fptype daug3Mass              = cudaArray[idx[1]+3];
-  fptype meson_radius           = cudaArray[idx[1]+4];
-
-  fptype resmass                = cudaArray[idx[2]];
-  fptype reswidth               = cudaArray[idx[3]];
-  unsigned int spin             = idx[4];
-  unsigned int cyclic_index     = idx[5]; 
+EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsigned int* indices)
+{
+  int numParams = cudaArray[*indices];
+  //these are + 1, which is where the elements start. 
+  fptype resmass                = cudaArray[*indices + 3];
+  fptype reswidth               = cudaArray[*indices + 4];
+  
+  int numObs = cudaArray[*indices + numParams + 1];
+  
+  int numCons = cudaArray[*indices + numParams + 1 + numObs + 1];
+  int consIdx = numParams + 1 + numObs + 2;
+  
+  unsigned int spin             = cudaArray[*indices + consIdx + 0];
+  unsigned int cyclic_index     = cudaArray[*indices + consIdx + 1]; 
+  
+  fptype motherMass             = cudaArray[*indices + consIdx + 2];
+  fptype daug1Mass              = cudaArray[*indices + consIdx + 3];
+  fptype daug2Mass              = cudaArray[*indices + consIdx + 4];
+  fptype daug3Mass              = cudaArray[*indices + consIdx + 5];
+  fptype meson_radius           = cudaArray[*indices + consIdx + 6];
 
   fptype rMassSq = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
   fptype frFactor = 1;
@@ -406,8 +407,8 @@ ResonancePdf::ResonancePdf (string name,
 
   untracked.push_back (ar);
   untracked.push_back (ai);
-  parameterList.push_back (mass);
-  parameterList.push_back (width);
+  //parameterList.push_back (mass);
+  //parameterList.push_back (width);
 
   constants.push_back (sp);
   constants.push_back (cyc);
@@ -437,8 +438,8 @@ ResonancePdf::ResonancePdf (string name,
 
   untracked.push_back (ar);
   untracked.push_back (ai);
-  parameterList.push_back (mass);
-  parameterList.push_back (width);
+  //parameterList.push_back (mass);
+  //parameterList.push_back (width);
 
   constants.push_back (sp);
   constants.push_back (cyc);
@@ -469,8 +470,8 @@ ResonancePdf::ResonancePdf (string name,
 
   untracked.push_back (ar);
   untracked.push_back (ai);
-  parameterList.push_back (mass);
-  parameterList.push_back (width);
+  //parameterList.push_back (mass);
+  //parameterList.push_back (width);
 
   constants.push_back (sp);
   constants.push_back (cyc);
@@ -495,8 +496,8 @@ ResonancePdf::ResonancePdf (string name,
   untracked.push_back (ai);
   untracked.push_back (ar);
   untracked.push_back (ai);
-  untracked.push_back (ar);
-  untracked.push_back (ai);
+  //untracked.push_back (ar);
+  //untracked.push_back (ai);
   
   constants.push_back (0);
   constants.push_back (0);
@@ -525,8 +526,8 @@ ResonancePdf::ResonancePdf (string name,
 
   untracked.push_back (ar);
   untracked.push_back (ai);
-  parameterList.push_back (mean);
-  parameterList.push_back (sigma);
+  //parameterList.push_back (mean);
+  //parameterList.push_back (sigma);
 
   constants.push_back (cyc);
   constants.push_back (0);
@@ -577,3 +578,11 @@ __host__ void ResonancePdf::recursiveSetIndices ()
     host_params[totalParams++] = constants[i];
 }
 
+__host__ void ResonancePdf::setDecayInfo (fptype mom, fptype d1, fptype d2, fptype d3, fptype mr)
+{
+  constants.push_back (mom);
+  constants.push_back (d1);
+  constants.push_back (d2);
+  constants.push_back (d3);
+  constants.push_back (mr);
+}

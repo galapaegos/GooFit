@@ -327,10 +327,33 @@ DalitzPlotPdf* makeSignalPdf (GooPdf* eff = 0) {
   dtop0pp->resonances.push_back(f0_1710); 
   dtop0pp->resonances.push_back(f2_1270); 
   dtop0pp->resonances.push_back(f0_600); 
+  
+  //pass in the decay info (new)
+  //dtop0pp->motherMass  = _mD0; 
+  //dtop0pp->daug1Mass  = piZeroMass;
+  //dtop0pp->daug2Mass  = piPlusMass;
+  //dtop0pp->daug3Mass  = piPlusMass;
+  //dtop0pp->meson_radius  = 1.5; 
+  nonr->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  rhop->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5);
+  rho0->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  rhom->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  rhop_1450->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  rho0_1450->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  rhom_1450->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  rhop_1700->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  rho0_1700->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  rhom_1700->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  f0_980->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  f0_1370->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  f0_1500->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  f0_1710->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  f2_1270->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
+  f0_600->setDecayInfo(_mD0, piZeroMass, piPlusMass, piPlusMass, 1.5); 
 
   if (!fitMasses) {
     for (vector<ResonancePdf*>::iterator res = dtop0pp->resonances.begin(); res != dtop0pp->resonances.end(); ++res) {
-      (*res)->setParameterConstantness(true); 
+       (*res)->setParameterConstantness(true); 
     }
   }
 

@@ -281,10 +281,13 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
   //populate this array with our stuff
   for (int i = 0; i < numEntries; ++i)
   {
+    //brad: hack I think?  *v->index is not being generated correctly...
+    int counter = 0;
     for (obsIter v = obsBegin(); v != obsEnd(); ++v)
     {
       fptype currVal = data->getValue((*v), i);
-      host_array[i*dimensions + (*v)->index] = currVal; 
+      host_array[i*dimensions + counter] = currVal; 
+      counter++;
     }
   }
 

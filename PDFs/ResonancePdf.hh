@@ -59,6 +59,7 @@ public:
 			  unsigned int cyc);
 
   __host__ virtual void recursiveSetIndices ();
+  __host__ void setDecayInfo (fptype mom, fptype d1, fptype d2, fptype d3, fptype mr);
 
 private:
   //(brad): this isn't used anymore

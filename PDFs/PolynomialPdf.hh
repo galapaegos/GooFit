@@ -16,6 +16,7 @@ public:
   __host__ virtual void recursiveSetIndices ();
 
 private:
+  int polyType;
   Variable* center; 
 };
 
