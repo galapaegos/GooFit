@@ -537,6 +537,34 @@ ResonancePdf::ResonancePdf (string name,
 
 }
 
+__host__ void ResonancePdf::copyParams (std::vector<Variable*> vars)
+{
+  //(brad) copy all values into host_params to be transfered
+  //note these are indexed the way they are passed.
+  // Copies values of Variable objects
+
+  //copy from vars to our local copy, should be able to remove this at some point(?)
+  //for (int x = 0; x < vars.size (); x++)
+  //{
+  //  for (int y = 0; y < parameterList.size (); y++)
+  //  {
+  //    if (parameterList[y]->name == vars[x]->name)
+  //    {
+  //      parameterList[y]->value = vars[x]->value;
+  //      parameterList[y]->blind = vars[x]->blind;
+  //    }
+  //  }
+  //}
+
+  int counter = untracked.size ();
+  for (int i = 0; i < parameterList.size (); i++)
+    host_params[parametersIdx + counter++] = parameterList[i]->value + parameterList[i]->blind;
+
+  //recurse
+  for (int i = 0; i < components.size (); i++)
+    components[i]->copyParams(vars);
+}
+
 __host__ void ResonancePdf::recursiveSetIndices ()
 {
   //(brad): copy into our device list, will need to have a variable to determine type

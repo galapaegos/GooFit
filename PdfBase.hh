@@ -51,7 +51,7 @@ public:
   __host__ void copyParams (const std::vector<double>& pars) const;
   //todo: this is a recursive copy for each component, don't use the copyParams
   __host__ void copy (std::vector<Variable*> updates);
-  __host__ void copyParams (std::vector<Variable*> updates); 
+  __host__ virtual void copyParams (std::vector<Variable*> updates); 
   //__host__ void copyNormFactors () const;
   __host__ void generateNormRange (); 
   __host__ std::string getName () const {return name;} 

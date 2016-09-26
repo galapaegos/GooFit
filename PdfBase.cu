@@ -54,43 +54,28 @@ __host__ void PdfBase::copy (std::vector<Variable*> vars)
   MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 }
 
-__host__ void PdfBase::copyParams (std::vector<Variable*> vars) {
-  //(brad) copy all values into host_params to be transfered
-  //note these are indexed the way they are passed.
-  // Copies values of Variable objects
+__host__ void PdfBase::copyParams (std::vector<Variable*> vars)
+{
+  //brad: Copy from the global variable list and update our local parameter list
+  //for (int x = 0; x < vars.size (); x++)
+  //{
+  //  for (int y = 0; y < parameterList.size (); y++)
+  //  {
+  //    if (parameterList[y]->name == vars[x]->name)
+  //    {
+  //      parameterList[y]->value = vars[x]->value;
+  //      parameterList[y]->blind = vars[x]->blind;
+  //    }
+  //  }
+  //}
 
-  //copy from vars to our local copy, should be able to remove this at some point(?)
-  for (int x = 0; x < vars.size (); x++)
-  {
-    for (int y = 0; y < parameterList.size (); y++)
-    {
-      if (parameterList[y]->name == vars[x]->name)
-      {
-        parameterList[y]->value = vars[x]->value;
-        parameterList[y]->blind = vars[x]->blind;
-      }
-    }
-  }
-
+  //re-populate our parameter list
   for (int i = 0; i < parameterList.size (); i++)
-  {
     host_params[parametersIdx + i] = parameterList[i]->value + parameterList[i]->blind;
-    //printf ("param[%i]:%f\n", i,parameterList[i]->value + parameterList[i]->blind); 
-  }
 
   //recurse
   for (int i = 0; i < components.size (); i++)
     components[i]->copyParams(vars);
-
-  //parCont pars; 
-  //getParameters(pars); 
-  //std::vector<double> values; 
-  //for (parIter v = pars.begin(); v != pars.end(); ++v) {
-  //  int index = (*v)->getIndex(); 
-  //  if (index >= (int) values.size()) values.resize(index + 1);
-  //  values[index] = (*v)->value;
-  //}
-  //copyParams(values); 
 }
 
 //__host__ void PdfBase::copyNormFactors () const {
@@ -214,8 +199,8 @@ __host__ void PdfBase::setIndices () {
 
   recursiveSetIndices(); 
 
-  MEMCPY_TO_SYMBOL(device_function_table, host_function_table, num_device_functions*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
-  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(device_function_table, host_function_table, num_device_functions*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 }
 
 __host__ void PdfBase::setData (UnbinnedDataSet* data)
@@ -256,7 +241,9 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
 #endif
 
   //fptype *host_array = new fptype[numEntries*dimensions];
-  fptype *host_array = (fptype*)malloc (numEntries*dimensions*sizeof(fptype));
+  printf ("numEntries:%i dimensions:%i\n", numEntries, dimensions);
+  //fptype *host_array = (fptype*)malloc (numEntries*dimensions*sizeof(fptype));
+  fptype *host_array = new fptype[numEntries*dimensions];
 
 #ifdef TARGET_MPI
   //This is an array to track if we need to redo indexing
@@ -286,10 +273,14 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
     for (obsIter v = obsBegin(); v != obsEnd(); ++v)
     {
       fptype currVal = data->getValue((*v), i);
-      host_array[i*dimensions + counter] = currVal; 
-      counter++;
+      host_array[i*dimensions + counter++] = currVal; 
     }
   }
+  
+  //for (int i = 0; i < numEntries; i++)
+  //{
+  //  printf ("%i - %f %f %f\n", i, host_array[i*dimensions], host_array[i*dimensions + 1], host_array[i*dimensions + 2]);
+  //}
 
 #ifdef TARGET_MPI
   // we need to fix our observables indexing to reflect having multiple cards
@@ -325,9 +316,8 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
   delete [] displacements;
 #else
   gooMalloc((void**) &dev_event_array, dimensions*numEntries*sizeof(fptype));
-  printf ("dimensions:%i numEntries:%i\n", dimensions, numEntries);
   MEMCPY(dev_event_array, host_array, dimensions*numEntries*sizeof(fptype), cudaMemcpyHostToDevice);
-  //delete[] host_array; 
+  delete[] host_array; 
   //free (host_array);
 #endif
 }

@@ -26,14 +26,23 @@ void FitManager::setupMinuit () {
   minuit = new TMinuit(numPars); 
   int maxIndex = 0; 
   int counter = 0; 
+  
+  //(brad)sort the vars list???
+  
+  //set index to match minuit index
   for (std::vector<Variable*>::iterator i = vars.begin(); i != vars.end(); ++i) {
     minuit->DefineParameter(counter, (*i)->name.c_str(), (*i)->value, (*i)->error, (*i)->lowerlimit, (*i)->upperlimit); 
+    printf ("MINUIT Variable:%s value:%f counter:%i\n", (*i)->name.c_str(), (*i)->value, counter);
     (*i)->index = counter;
-    //printf ("variable:%s value:%f counter:%i\n", (*i)->name.c_str(), (*i)->value, counter);
     if ((*i)->fixed) minuit->FixParameter(counter);
     counter++; 
     if (maxIndex < (*i)->getIndex()) maxIndex = (*i)->getIndex();
   }
+  
+  //for (int j = 0; j < vars.size ();j++)
+  //{
+  //  printf ("variable:%s value:%f blind:%f counter:%i\n", vars[j]->name.c_str (), vars[j]->value, vars[j]->blind, vars[j]->getIndex());
+  //}
 
   numPars = maxIndex+1; 
   pdfPointer->copyParams(vars);   
@@ -79,22 +88,29 @@ void FitFun(int &npar, double *gin, double &fun, double *fp, int iflag) {
   }
   */
 
-  for (int i = 0; i < numPars; i++)
+  for (int counter = 0; counter < numPars; counter++)
   {
-    for (int j = 0; j < vars.size (); j++)
+  for (int j = 0; j < vars.size (); j++)
+  {
+    //this is the minuit index
+    if (vars[j]->index == counter)
     {
-      if (vars[j]->index == i)
-      {
-        //printf ("variable:%s value:%f counter:%i\n", vars[j]->name.c_str (), fp[i] + vars[j]->blind, i);
-        vars[j]->value = fp[i] + vars[j]->blind;
-      }
+      //check for nan
+      if (std::isnan(fp[counter]))
+	printf ("Variable %s is NaN\n", vars[j]->name.c_str ());
+	
+      vars[j]->value = fp[counter] + vars[j]->blind;
     }
   }
+  }
   
-  //pdfPointer->copyParams(pars); 
+  //for (int j = 0; j < vars.size ();j++)
+  //  printf ("variable:%s value:%f blind:%f counter:%i\n", vars[j]->name.c_str (), vars[j]->value, vars[j]->blind, vars[j]->getIndex());
 
+  //have each PDF update their section in host_params
   pdfPointer->copy (vars);
 
+  //run the fit
   fun = pdfPointer->calculateNLL(); 
   host_callnumber++; 
 

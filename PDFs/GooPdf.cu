@@ -10,7 +10,7 @@
 
 // Device-side, translation-unit constrained. 
 //(brad) note we are storing all types of constants into this array.  
-MEM_CONSTANT fptype cudaArray[maxParams];           // Holds device-side fit parameters. 
+MEM_DEVICE fptype cudaArray[maxParams];           // Holds device-side fit parameters. 
 
 //(brad) keep these here for compile reasons, but should be moved to only under cudaArray
 //MEM_CONSTANT unsigned int paramIndices[maxParams];  // Holds functor-specific indices into cudaArray. Also overloaded to hold integer constants (ie parameters that cannot vary.) 
@@ -94,7 +94,7 @@ EXEC_TARGET fptype calculateEval (fptype rawPdf, fptype* evtVal, unsigned int *p
 EXEC_TARGET fptype calculateNLL (fptype rawPdf, fptype* evtVal, unsigned int *par) {
   //if ((10 > callnumber) && (THREADIDX < 10) && (BLOCKIDX == 0)) cuPrintf("calculateNll %i %f %f %f\n", callnumber, rawPdf, normalisationFactors[par], rawPdf*normalisationFactors[par]);
   //if (THREADIDX < 50)
-  //printf("Thread %i %f %f\n", THREADIDX, rawPdf, cudaArray[par]); 
+  //printf("Thread %i %f %i-%f\n", THREADIDX, rawPdf, *par, cudaArray[*par]); 
   rawPdf *= cudaArray[*par];
   return rawPdf > 0 ? -LOG(rawPdf) : 0; 
 }
@@ -174,11 +174,14 @@ GooPdf::~GooPdf ()
 __host__ void GooPdf::setIndices()
 {
   PdfBase::setIndices();
-  host_function_table[num_device_functions++] = getMetricPointer(fitControl->getMetric());  
+  host_function_table[num_device_functions] = getMetricPointer(fitControl->getMetric());
+  printf ("metric:%s pointer:%p\n", fitControl->getMetric().c_str (), host_function_table[num_device_functions]);
+  
+  num_device_functions++;
 
   //copy after all sub pdfs have updated these structures
   MEMCPY_TO_SYMBOL(device_function_table, host_function_table, num_device_functions*sizeof(fptype), 0, cudaMemcpyHostToDevice);
-  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice);
+  //MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice);
 }
 
 __host__ int GooPdf::findFunctionIdx (void* dev_functionPtr) {
@@ -500,13 +503,17 @@ EXEC_TARGET fptype MetricTaker::operator () (thrust::tuple<int, fptype*, int> t)
   int eventIndex = thrust::get<0>(t);
   int eventSize  = thrust::get<2>(t);
   fptype* eventAddress = thrust::get<1>(t) + (eventIndex * abs(eventSize)); 
+  
+  //test printing one event
+  //if (eventIndex > 810)
+  //  return 0.0;
 
   unsigned int params = cudaArray[0];
-  unsigned int observ = cudaArray[params + 1];
-  unsigned int consta = cudaArray[params + 1 + observ + 1];
-  unsigned int normal = cudaArray[params + 1 + observ + 1 + consta + 1];
+  unsigned int observ = cudaArray[1 + params];
+  unsigned int consta = cudaArray[1 + params + 1 + observ];
+  unsigned int normal = cudaArray[1 + params + 1 + observ + 1 + consta];
 
-  unsigned int normalIdx = params + 1 + observ +  1 + consta + 1 + 1;
+  unsigned int normalIdx = 1 + params + 1 + observ +  1 + consta + 1;
 
   // Causes stack size to be statically undeterminable.
   unsigned int funcIdx = 0;
@@ -517,7 +524,13 @@ EXEC_TARGET fptype MetricTaker::operator () (thrust::tuple<int, fptype*, int> t)
   // in the metric, so it doesn't matter what it is. For binned fits it is assumed that
   // the structure of the event is (obs1 obs2... binentry binvolume), so that the array
   // passed to the metric consists of (binentry binvolume). 
-  ret = (*(reinterpret_cast<device_metric_ptr>(device_function_table[funcIdx])))(ret, eventAddress + (abs(eventSize)-2), &normalIdx);
+  //printf ("metric funcIdx:%i\n", funcIdx);
+  //device_metric_ptr dev_metric = reinterpret_cast<device_metric_ptr>(device_function_table[funcIdx]);
+  //ret = (*(reinterpret_cast<device_metric_ptr>(device_function_table[metricIndex])))(ret, eventAddress + (abs(eventSize)-2), &normalIdx);
+  
+  //brad: hack:
+  ret *= cudaArray[normalIdx];
+  ret = ret > 0 ? -LOG(ret) : 0; 
   return ret; 
 }
  

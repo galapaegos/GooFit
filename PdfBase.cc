@@ -143,7 +143,8 @@ __host__ bool PdfBase::parametersChanged () const {
   getParameters(params); 
   int counter = 0; 
   for (parIter v = params.begin(); v != params.end(); ++v) {
-    if (cachedParams[counter++] != host_params[(*v)->index]) return true;
+    if (cachedParams[counter] != host_params[parametersIdx + counter]) return true;
+    counter ++;
   }
 
   return false;
@@ -156,7 +157,8 @@ __host__ void PdfBase::storeParameters () const {
 
   int counter = 0; 
   for (parIter v = params.begin(); v != params.end(); ++v) {
-    cachedParams[counter++] = host_params[(*v)->index];
+    cachedParams[counter] = host_params[parametersIdx + counter];
+    counter ++;
   }
 }
 

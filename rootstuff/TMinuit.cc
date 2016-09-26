@@ -2094,6 +2094,7 @@ void TMinuit::mnderi()
 //*-*-                end of iterations if step change less than factor 2
          if (fabs((step - stepb4) / step) < tlrstp) goto L50;
 //*-*-        take step positive
+	  //brad: we are going to evaluate at the same time.  We are doing this with streams
          stepb4 = step;
          if (fGstep[i-1] > 0) fGstep[i-1] =  fabs(step);
          else                 fGstep[i-1] = -fabs(step);

@@ -118,8 +118,8 @@ EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, unsigned int* funcIdx, u
   //if ((1 > (int) floor(0.5 + evt[8])) && (gpuDebug & 1) && (paramIndices + debugParamIndex == indices))
   //printf("Final polynomial: %f\n", ret); 
 
-  *indices += numParams + numObs + numCons + 2;
   *funcIdx += 1;
+  *indices += numParams + numObs + numCons + 2;
 
   //if (0 > ret) ret = 0; 
   return ret; 
@@ -169,7 +169,7 @@ __host__ PolynomialPdf::PolynomialPdf (string n, vector<Variable*> obses, vector
   for (unsigned int i = 0; i < obses.size(); ++i) {
     registerObservable(obses[i]);
     numParameters *= (maxDegree + 1 + i); 
-    observables.push_back (obses[i]);
+    //observables.push_back (obses[i]);
   }
   for (int i = observables.size(); i > 1; --i) numParameters /= i; 
 

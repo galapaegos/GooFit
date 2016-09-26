@@ -58,6 +58,7 @@ public:
 			  Variable* sigma,
 			  unsigned int cyc);
 
+  __host__ virtual void copyParams (std::vector<Variable*> vars);
   __host__ virtual void recursiveSetIndices ();
   __host__ void setDecayInfo (fptype mom, fptype d1, fptype d2, fptype d3, fptype mr);
 
