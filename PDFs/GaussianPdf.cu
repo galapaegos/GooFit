@@ -1,10 +1,10 @@
 #include "GaussianPdf.hh"
 
-EXEC_TARGET fptype device_Gaussian (fptype* evt, unsigned int* funcIdx, unsigned int* indices)
+EXEC_TARGET fptype device_Gaussian (unsigned int eventId, unsigned int* funcIdx, unsigned int* indices)
 {
   //int tidx = blockDim.x *blockIdx.x + threadIdx.x;
 
-  fptype x = evt[0];//indices[2 + indices[0]]]; 
+  fptype x = dev_event_m12[eventId];//indices[2 + indices[0]]]; 
 
   //__shared__ fptype idx[2];
   //if (THREADIDX == 0)

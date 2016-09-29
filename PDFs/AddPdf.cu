@@ -1,6 +1,6 @@
 #include "AddPdf.hh"
 
-EXEC_TARGET fptype device_AddPdfs (fptype* evt, unsigned int *funcIdx, unsigned int* indices) { 
+EXEC_TARGET fptype device_AddPdfs (unsigned int eventId, unsigned int *funcIdx, unsigned int* indices) { 
   //addition example - numParameters is 5
   int numParameters = cudaArray[*indices]; 
   fptype ret = 0;
@@ -23,7 +23,7 @@ EXEC_TARGET fptype device_AddPdfs (fptype* evt, unsigned int *funcIdx, unsigned 
 
     totalWeight += weight;
     //first call to callFunction is device_Gaussian
-    fptype curr = callFunction(evt, funcIdx, indices); 
+    fptype curr = callFunction(eventId, funcIdx, indices); 
 
     ret += weight * curr * norm; 
 
@@ -44,7 +44,7 @@ EXEC_TARGET fptype device_AddPdfs (fptype* evt, unsigned int *funcIdx, unsigned 
   //fptype last = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[numParameters-1]])))(evt, p, paramIndices + indices[numParameters]);
 
   //addition example calls device_Polynomial
-  fptype last = callFunction(evt, funcIdx, indices);
+  fptype last = callFunction(eventId, funcIdx, indices);
   ret += (1 - totalWeight) * last * normFactors; 
 
   //if ((THREADIDX < 50) && (isnan(ret))) printf("NaN final component %f %f\n", last, totalWeight); 
@@ -56,7 +56,7 @@ EXEC_TARGET fptype device_AddPdfs (fptype* evt, unsigned int *funcIdx, unsigned 
   return ret; 
 }
 
-EXEC_TARGET fptype device_AddPdfsExt (fptype* evt, unsigned int* funcIdx, unsigned int* indices) { 
+EXEC_TARGET fptype device_AddPdfsExt (unsigned int eventId, unsigned int* funcIdx, unsigned int* indices) { 
   // numParameters does not count itself. So the array structure for two functions is
   // nP | F P w | F P w
   // in which nP = 6. 
@@ -68,7 +68,7 @@ EXEC_TARGET fptype device_AddPdfsExt (fptype* evt, unsigned int* funcIdx, unsign
   for (int i = 1; i < numParameters; i += 3) {    
     *indices += 3;
     //fptype curr = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[i]])))(evt, p, paramIndices + indices[i+1]);
-    fptype curr = callFunction(evt, funcIdx, indices); 
+    fptype curr = callFunction(eventId, funcIdx, indices); 
     fptype weight = cudaArray[*indices + i+2];
     ret += weight * curr * cudaArray[*indices + i+1]; 
 

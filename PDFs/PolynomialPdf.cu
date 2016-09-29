@@ -1,14 +1,14 @@
 #include "PolynomialPdf.hh"
 
-EXEC_TARGET fptype device_Polynomial (fptype* evt, unsigned int *funcIdx, unsigned int* indices) {
+EXEC_TARGET fptype device_Polynomial (unsigned int eventId, unsigned int *funcIdx, unsigned int* indices) {
   // Structure is nP lowestdegree c1 c2 c3 nO o1
 
   int numParams = cudaArray[*indices + 0]; 
   int numObs = cudaArray[*indices + numParams + 1];
-  int numCons = cudaArray[*indices + numParams + 1 + numObs + 1];
+  //int numCons = cudaArray[*indices + numParams + 1 + numObs + 1];
   int lowestDegree = cudaArray[*indices + numParams + 1 + numObs + 1 + 1]; 
 
-  fptype x = evt[0];//indices[2 + indices[0]]]; 
+  fptype x = dev_event_m12[eventId];//indices[2 + indices[0]]]; 
   fptype ret = 0; 
   for (int i = 1; i < numParams; ++i)
   {
@@ -21,17 +21,17 @@ EXEC_TARGET fptype device_Polynomial (fptype* evt, unsigned int *funcIdx, unsign
   return ret; 
 }
 
-EXEC_TARGET fptype device_OffsetPolynomial (fptype* evt, unsigned int *funcIdx, unsigned int* indices) {
+EXEC_TARGET fptype device_OffsetPolynomial (unsigned int eventId, unsigned int *funcIdx, unsigned int* indices) {
   //int numParams = indices[0]; 
   //int lowestDegree = indices[1]; 
 
   int numParams = cudaArray[*indices + 0];
   int numObs = cudaArray[*indices + numParams + 1];
-  int numCons = cudaArray[*indices + numParams + 1 + numObs + 1];
+  //int numCons = cudaArray[*indices + numParams + 1 + numObs + 1];
   int lowestDegree = cudaArray[*indices + numParams + 1 + numObs + 1 + 1];
 
   //fptype x = evt[indices[2 + numParams]];
-  fptype x = evt[0];
+  fptype x = dev_event_m12[eventId];
   //todo: (brad) I think this is pointing to an observable?
   //x -= cudaArray[*indices + numParams]; 
   x -= numParams;
@@ -47,7 +47,7 @@ EXEC_TARGET fptype device_OffsetPolynomial (fptype* evt, unsigned int *funcIdx, 
   return ret; 
 }
 
-EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, unsigned int* funcIdx, unsigned int* indices) {
+EXEC_TARGET fptype device_MultiPolynomial (unsigned int eventId, unsigned int* funcIdx, unsigned int* indices) {
   // Structure is nP, maxDegree, offset1, offset2, ..., coeff1, coeff2, ..., nO, o1, o2, ... 
   //int idx[2];
   //idx[0] = indices[0];
@@ -89,7 +89,8 @@ EXEC_TARGET fptype device_MultiPolynomial (fptype* evt, unsigned int* funcIdx, u
       //todo (brad): need to debug these, what is offset and x supposed to be?
       fptype offset = cudaArray[*indices + numParams + 1 + i]; // x0, y0, z0... 
       //todo (brad): need to debug these, what is offset and x supposed to be?
-      fptype x = evt[0]; // x, y, z...    
+        
+      fptype x = dev_event_m12[eventId]; // x, y, z...    
 
       x -= offset; 
       int currPower = currIndex % maxDegree; 

@@ -487,8 +487,8 @@ EXEC_TARGET fptype callFunction (fptype* eventAddress, unsigned int functionIdx,
   return ret; 
 }
 #else 
-EXEC_TARGET fptype callFunction (fptype* eventAddress, unsigned int *functionIdx, unsigned int *paramIdx) {
-  return (*(reinterpret_cast<device_function_ptr>(device_function_table[*functionIdx])))(eventAddress, functionIdx, paramIdx);
+EXEC_TARGET fptype callFunction (unsigned int event, unsigned int *functionIdx, unsigned int *paramIdx) {
+  return (*(reinterpret_cast<device_function_ptr>(device_function_table[*functionIdx])))(event, functionIdx, paramIdx);
 }
 #endif 
 
@@ -511,14 +511,14 @@ EXEC_TARGET fptype MetricTaker::operator () (thrust::tuple<int, fptype*, int> t)
   unsigned int params = cudaArray[0];
   unsigned int observ = cudaArray[1 + params];
   unsigned int consta = cudaArray[1 + params + 1 + observ];
-  unsigned int normal = cudaArray[1 + params + 1 + observ + 1 + consta];
+  //unsigned int normal = cudaArray[1 + params + 1 + observ + 1 + consta];
 
   unsigned int normalIdx = 1 + params + 1 + observ +  1 + consta + 1;
 
   // Causes stack size to be statically undeterminable.
   unsigned int funcIdx = 0;
   unsigned int paramIdx = 0;
-  fptype ret = callFunction(eventAddress, &funcIdx, &paramIdx);
+  fptype ret = callFunction(eventIndex, &funcIdx, &paramIdx);
 
   // Notice assumption here! For unbinned fits the 'eventAddress' pointer won't be used
   // in the metric, so it doesn't matter what it is. For binned fits it is assumed that
@@ -593,7 +593,8 @@ EXEC_TARGET fptype MetricTaker::operator () (thrust::tuple<int, int, fptype*> t)
   }
 
   // Causes stack size to be statically undeterminable.
-  fptype ret = callFunction(binCenters+THREADIDX*MAX_NUM_OBSERVABLES, &funcIdx, &parameterIdx); 
+  //fptype ret = callFunction(binCenters+THREADIDX*MAX_NUM_OBSERVABLES, &funcIdx, &parameterIdx); 
+  fptype ret = 0.0;
   return ret; 
 }
 

@@ -22,7 +22,7 @@ EXEC_TARGET int dev_powi (int base, int exp); // Implemented in SmoothHistogramP
 
 #define CALLS_TO_PRINT 10
 //pass event, function, parameters.  each need to be incremented accordingly based on PDF 
-typedef fptype (*device_function_ptr) (fptype*, unsigned int*, unsigned int*);            // Pass event, parameters, index into parameters. 
+typedef fptype (*device_function_ptr) (unsigned int, unsigned int*, unsigned int*);            // Pass event, parameters, index into parameters. 
 typedef fptype (*device_metric_ptr) (fptype, fptype*, unsigned int*); 
 
 extern void* host_fcn_ptr;

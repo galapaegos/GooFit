@@ -41,7 +41,7 @@ EXEC_TARGET fptype dampingFactorSquare (fptype cmmom, int spin, fptype mRadius) 
   return dfsq; 
 }
 
-EXEC_TARGET fptype spinFactor (unsigned int spin, fptype motherMass, fptype daug1Mass, fptype daug2Mass, fptype daug3Mass, fptype m12, fptype m13, fptype m23, unsigned int cyclic_index) {
+EXEC_TARGET fptype spinFactor (unsigned int spin, fptype m12, fptype m13, fptype m23, unsigned int cyclic_index) {
   if (0 == spin) return 1; // Should not cause branching since every thread evaluates the same resonance at the same time. 
   /*
   // Copied from BdkDMixDalitzAmp
@@ -66,19 +66,19 @@ EXEC_TARGET fptype spinFactor (unsigned int spin, fptype motherMass, fptype daug
 
   // Copied from EvtDalitzReso, with assumption that pairAng convention matches pipipi0 from EvtD0mixDalitz.
   // Again, all threads should get the same branch. 
-  fptype _mA = (PAIR_12 == cyclic_index ? daug1Mass : (PAIR_13 == cyclic_index ? daug3Mass : daug2Mass));
-  fptype _mB = (PAIR_12 == cyclic_index ? daug2Mass : (PAIR_13 == cyclic_index ? daug1Mass : daug3Mass));
-  fptype _mC = (PAIR_12 == cyclic_index ? daug3Mass : (PAIR_13 == cyclic_index ? daug2Mass : daug1Mass));
+  fptype _mA = (PAIR_12 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index ? c_daug3Mass : c_daug2Mass));
+  fptype _mB = (PAIR_12 == cyclic_index ? c_daug2Mass : (PAIR_13 == cyclic_index ? c_daug1Mass : c_daug3Mass));
+  fptype _mC = (PAIR_12 == cyclic_index ? c_daug3Mass : (PAIR_13 == cyclic_index ? c_daug2Mass : c_daug1Mass));
   fptype _mAC = (PAIR_12 == cyclic_index ? m13 : (PAIR_13 == cyclic_index ? m23 : m12)); 
   fptype _mBC = (PAIR_12 == cyclic_index ? m23 : (PAIR_13 == cyclic_index ? m12 : m13)); 
   fptype _mAB = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23)); 
 
   fptype massFactor = 1.0/_mAB;
   fptype sFactor = -1; 
-  sFactor *= ((_mBC - _mAC) + (massFactor*(motherMass*motherMass - _mC*_mC)*(_mA*_mA-_mB*_mB)));
+  sFactor *= ((_mBC - _mAC) + (massFactor*(c_motherMass*c_motherMass - _mC*_mC)*(_mA*_mA-_mB*_mB)));
   if (2 == spin) {
     sFactor *= sFactor; 
-    fptype extraterm = ((_mAB-(2*motherMass*motherMass)-(2*_mC*_mC))+massFactor*pow((motherMass*motherMass-_mC*_mC),2));
+    fptype extraterm = ((_mAB-(2*c_motherMass*c_motherMass)-(2*_mC*_mC))+massFactor*pow((c_motherMass*c_motherMass-_mC*_mC),2));
     extraterm *= ((_mAB-(2*_mA*_mA)-(2*_mB*_mB))+massFactor*pow((_mA*_mA-_mB*_mB),2));
     extraterm /= 3;
     sFactor -= extraterm;
@@ -90,22 +90,20 @@ EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsi
 {
   int numParams = cudaArray[*indices];
   //these are + 1, which is where the elements start. 
-  fptype resmass                = cudaArray[*indices + 3];
-  fptype reswidth               = cudaArray[*indices + 4];
+  fptype resmass                = cudaArray[*indices + 1];
+  fptype reswidth               = cudaArray[*indices + 2];
   
-  int numObs = cudaArray[*indices + numParams + 1];
-  
-  int numCons = cudaArray[*indices + numParams + 1 + numObs + 1];
-  int consIdx = numParams + 1 + numObs + 2;
+  //int numCons = cudaArray[*indices + numParams + 1];
+  int consIdx = numParams + 2;
   
   unsigned int spin             = cudaArray[*indices + consIdx + 0];
   unsigned int cyclic_index     = cudaArray[*indices + consIdx + 1]; 
   
-  fptype motherMass             = cudaArray[*indices + consIdx + 2];
-  fptype daug1Mass              = cudaArray[*indices + consIdx + 3];
-  fptype daug2Mass              = cudaArray[*indices + consIdx + 4];
-  fptype daug3Mass              = cudaArray[*indices + consIdx + 5];
-  fptype meson_radius           = cudaArray[*indices + consIdx + 6];
+  //fptype motherMass             = cudaArray[*indices + consIdx + 2];
+  //fptype daug1Mass              = cudaArray[*indices + consIdx + 3];
+  //fptype daug2Mass              = cudaArray[*indices + consIdx + 4];
+  //fptype daug3Mass              = cudaArray[*indices + consIdx + 5];
+  //fptype meson_radius           = cudaArray[*indices + consIdx + 6];
 
   fptype rMassSq = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
   fptype frFactor = 1;
@@ -113,15 +111,15 @@ EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsi
   resmass *= resmass; 
   // Calculate momentum of the two daughters in the resonance rest frame; note symmetry under interchange (dm1 <-> dm2). 
   fptype measureDaughterMoms = twoBodyCMmom(rMassSq, 
-					    (PAIR_23 == cyclic_index ? daug2Mass : daug1Mass), 
-					    (PAIR_12 == cyclic_index ? daug2Mass : daug3Mass));
+					    (PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass), 
+					    (PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass));
   fptype nominalDaughterMoms = twoBodyCMmom(resmass, 
-					    (PAIR_23 == cyclic_index ? daug2Mass : daug1Mass), 
-					    (PAIR_12 == cyclic_index ? daug2Mass : daug3Mass));
+					    (PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass), 
+					    (PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass));
 
   if (0 != spin) {
-    frFactor =  dampingFactorSquare(nominalDaughterMoms, spin, meson_radius);
-    frFactor /= dampingFactorSquare(measureDaughterMoms, spin, meson_radius); 
+    frFactor =  dampingFactorSquare(nominalDaughterMoms, spin, c_mesonRadius);
+    frFactor /= dampingFactorSquare(measureDaughterMoms, spin, c_mesonRadius); 
   }  
  
   // RBW evaluation
@@ -131,7 +129,7 @@ EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsi
   devcomplex<fptype> ret(A*C, B*C); // Dropping F_D=1
 
   ret *= SQRT(frFactor); 
-  fptype spinF = spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index); 
+  fptype spinF = spinFactor(spin, m12, m13, m23, cyclic_index); 
   ret *= spinF; 
 
   return ret; 
@@ -210,7 +208,7 @@ EXEC_TARGET devcomplex<fptype> gouSak (fptype m12, fptype m13, fptype m23, unsig
   idx[4] = indices[4];
   idx[5] = indices[5];
 
-  fptype motherMass             = cudaArray[idx[1]+0];
+  //fptype motherMass             = cudaArray[idx[1]+0];
   fptype daug1Mass              = cudaArray[idx[1]+1];
   fptype daug2Mass              = cudaArray[idx[1]+2];
   fptype daug3Mass              = cudaArray[idx[1]+3];
@@ -244,7 +242,7 @@ EXEC_TARGET devcomplex<fptype> gouSak (fptype m12, fptype m13, fptype m23, unsig
   D       /= (E*E + F*F);
   devcomplex<fptype> retur(D*E, D*F); // Dropping F_D=1
   retur *= sqrtfrFactor;
-  retur *= spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index);
+  retur *= spinFactor(spin, m12, m13, m23, cyclic_index);
 
   return retur; 
 }
@@ -258,7 +256,7 @@ EXEC_TARGET devcomplex<fptype> lass (fptype m12, fptype m13, fptype m23, unsigne
   idx[4] = indices[4];
   idx[5] = indices[5];
 
-  fptype motherMass             = cudaArray[idx[1]+0];
+  //fptype motherMass             = cudaArray[idx[1]+0];
   fptype daug1Mass              = cudaArray[idx[1]+1];
   fptype daug2Mass              = cudaArray[idx[1]+2];
   fptype daug3Mass              = cudaArray[idx[1]+3];
@@ -356,7 +354,7 @@ EXEC_TARGET devcomplex<fptype> lass (fptype m12, fptype m13, fptype m23, unsigne
   resT += b1*_B*(cos_phiB + cot_deltaB_sin)*SQRT(rMassSq)/a2;
 
   resT *= SQRT(frFactor);
-  resT *= spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index);
+  resT *= spinFactor(spin, m12, m13, m23, cyclic_index);
   
   return resT;
 }
@@ -405,11 +403,6 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(sp);
   pindices.push_back(cyc); 
 
-  untracked.push_back (ar);
-  untracked.push_back (ai);
-  //parameterList.push_back (mass);
-  //parameterList.push_back (width);
-
   constants.push_back (sp);
   constants.push_back (cyc);
 
@@ -435,11 +428,6 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(registerParameter(width)); 
   pindices.push_back(sp);
   pindices.push_back(cyc); 
-
-  untracked.push_back (ar);
-  untracked.push_back (ai);
-  //parameterList.push_back (mass);
-  //parameterList.push_back (width);
 
   constants.push_back (sp);
   constants.push_back (cyc);
@@ -468,11 +456,6 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(sp);
   pindices.push_back(cyc);
 
-  untracked.push_back (ar);
-  untracked.push_back (ai);
-  //parameterList.push_back (mass);
-  //parameterList.push_back (width);
-
   constants.push_back (sp);
   constants.push_back (cyc);
 
@@ -494,10 +477,6 @@ ResonancePdf::ResonancePdf (string name,
   // functions can't know that and will call setConstantIndex anyway. 
   untracked.push_back (ar);
   untracked.push_back (ai);
-  untracked.push_back (ar);
-  untracked.push_back (ai);
-  //untracked.push_back (ar);
-  //untracked.push_back (ai);
   
   constants.push_back (0);
   constants.push_back (0);
@@ -523,11 +502,6 @@ ResonancePdf::ResonancePdf (string name,
   pindices.push_back(registerParameter(mean));
   pindices.push_back(registerParameter(sigma)); 
   pindices.push_back(cyc); 
-
-  untracked.push_back (ar);
-  untracked.push_back (ai);
-  //parameterList.push_back (mean);
-  //parameterList.push_back (sigma);
 
   constants.push_back (cyc);
   constants.push_back (0);
@@ -588,6 +562,7 @@ __host__ void ResonancePdf::recursiveSetIndices ()
 
   //(brad)additional vector to keep track of variables that are not constant
   //in order to figure out the next index, we will need to do some additions to get all the proper offsets
+  printf ("totalParams:%i - ", totalParams);
   host_params[totalParams++] = untracked.size () + parameterList.size ();
   parametersIdx = totalParams;
   for (int i = 0; i < untracked.size (); i++)
@@ -595,22 +570,18 @@ __host__ void ResonancePdf::recursiveSetIndices ()
   for (int i = 0; i < parameterList.size (); i++)
     host_params[totalParams++] = parameterList[i]->value;
 
-  host_params[totalParams++] = observables.size ();
-  observablesIdx = totalParams;
-  for (int i = 0; i < observables.size (); i++)
-    host_params[totalParams++] = observables[i]->value;
-
   host_params[totalParams++] = constants.size ();
   constantsIdx = totalParams;
   for (int i = 0; i < constants.size (); i++)
     host_params[totalParams++] = constants[i];
+  printf ("%i\n", totalParams);
 }
 
 __host__ void ResonancePdf::setDecayInfo (fptype mom, fptype d1, fptype d2, fptype d3, fptype mr)
 {
-  constants.push_back (mom);
-  constants.push_back (d1);
-  constants.push_back (d2);
-  constants.push_back (d3);
-  constants.push_back (mr);
+  //constants.push_back (mom);
+  //constants.push_back (d1);
+  //constants.push_back (d2);
+  //constants.push_back (d3);
+  //constants.push_back (mr);
 }

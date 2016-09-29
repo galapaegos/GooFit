@@ -121,7 +121,7 @@ EXEC_TARGET ThreeComplex device_Tddp_calcIntegrals (fptype m12, fptype m13, int 
   return ret; 
 }
 
-EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int* indices) {
+EXEC_TARGET fptype device_Tddp (unsigned int eventId, unsigned int *funcIdx, unsigned int* indices) {
   int idx[14];
   idx[ 0] = indices[0];
   idx[ 1] = indices[1];
@@ -148,11 +148,11 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int
   fptype daug2Mass  = cudaArray[idx[1] + 2]; 
   fptype daug3Mass  = cudaArray[idx[1] + 3]; 
 
-  fptype m12 = evt[idx[10]]; 
-  fptype m13 = evt[idx[11]];
+  fptype m12 = dev_event_m12[eventId]; 
+  fptype m13 = dev_event_m13[eventId];
 
   if (!inDalitz(m12, m13, motherMass, daug1Mass, daug2Mass, daug3Mass)) return 0; 
-  int evtNum = (int) FLOOR(0.5 + evt[idx[12]]); 
+  int evtNum = (int) FLOOR(0.5 + dev_event_evtNum[eventId]); 
 
   devcomplex<fptype> sumWavesA(0, 0);
   devcomplex<fptype> sumWavesB(0, 0); 
@@ -183,9 +183,10 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int
   fptype _tau     = cudaArray[idx[2]];
   fptype _xmixing = cudaArray[idx[3]];
   fptype _ymixing = cudaArray[idx[4]];
-  
-  fptype _time    = evt[idx[8]];
-  fptype _sigma   = evt[idx[9]];
+ 
+  //change these to be separate labeled arrays 
+  fptype _time    = cudaArray[idx[8]];
+  fptype _sigma   = cudaArray[idx[9]];
 
   //if ((gpuDebug & 1) && (0 == BLOCKIDX) && (0 == THREADIDX)) 
   //if (0 == evtNum) printf("TDDP: (%f, %f) (%f, %f)\n", sumWavesA.real, sumWavesA.imag, sumWavesB.real, sumWavesB.imag);
@@ -217,7 +218,7 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int
     // In this case there are multiple resolution functions, they are stored after the efficiency function,
     // and which one we use depends on the measured mother-particle mass. 
     md0_offset = 1; 
-    fptype massd0 = evt[idx[13]]; 
+    fptype massd0 = cudaArray[idx[13]]; 
     fptype minMass = cudaArray[idx[1] + 6];
     fptype md0Step = cudaArray[idx[1] + 7];
     int res_to_use = (massd0 <= minMass) ? 0 : (int) FLOOR((massd0 - minMass) / md0Step); 
@@ -254,7 +255,7 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int
   if (mistag > 0) { // This should be either true or false for all events, so no branch is caused.
     // See header file for explanation of 'mistag' variable - it is actually the probability
     // of having the correct sign, given that we have a correctly reconstructed D meson. 
-    mistag = evt[indices[md0_offset + 7 + idx[0]]]; 
+    mistag = cudaArray[indices[md0_offset + 7 + idx[0]]]; 
     ret *= mistag; 
 
     ret += (1 - mistag) * (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, -term2, sumWavesA.real, -sumWavesA.imag,
@@ -262,7 +263,7 @@ EXEC_TARGET fptype device_Tddp (fptype* evt, unsigned int *funcIdx, unsigned int
 													   &t, &(indices[resFunctionPar])); 
   }
    
-  fptype eff = callFunction(evt, &effFunctionIdx, indices); 
+  fptype eff = callFunction(eventId, &effFunctionIdx, indices); 
 
   //internalDebug = 0; 
   ret *= eff;
@@ -322,22 +323,22 @@ __host__ TddpPdf::TddpPdf (std::string n, Variable* _dtime, Variable* _sigmat, V
   registerObservable(_m13);
   registerObservable(eventNumber); 
 
-  fptype decayConstants[6];
-  decayConstants[5] = 0; 
+  //fptype decayConstants[6];
+  //decayConstants[5] = 0; 
   
   if (mistag) {
     registerObservable(mistag);
     totalEventSize = 6; 
-    decayConstants[5] = 1; // Flags existence of mistag
+    //decayConstants[5] = 1; // Flags existence of mistag
   } 
 
   std::vector<unsigned int> pindices;
   pindices.push_back(registerConstants(6)); 
-  decayConstants[0] = decayInfo->motherMass;
-  decayConstants[1] = decayInfo->daug1Mass;
-  decayConstants[2] = decayInfo->daug2Mass;
-  decayConstants[3] = decayInfo->daug3Mass;
-  decayConstants[4] = decayInfo->meson_radius;
+  //decayConstants[0] = decayInfo->motherMass;
+  //decayConstants[1] = decayInfo->daug1Mass;
+  //decayConstants[2] = decayInfo->daug2Mass;
+  //decayConstants[3] = decayInfo->daug3Mass;
+  //decayConstants[4] = decayInfo->meson_radius;
   //MEMCPY_TO_SYMBOL(functorConstants, decayConstants, 6*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice);  
   
   pindices.push_back(registerParameter(decayInfo->_tau));
@@ -414,24 +415,24 @@ __host__ TddpPdf::TddpPdf (std::string n, Variable* _dtime, Variable* _sigmat, V
   registerObservable(eventNumber); 
   registerObservable(md0); 
 
-  fptype decayConstants[8];
-  decayConstants[5] = 0; 
-  decayConstants[6] = md0->lowerlimit;
-  decayConstants[7] = (md0->upperlimit - md0->lowerlimit) / r.size();
+  //fptype decayConstants[8];
+  //decayConstants[5] = 0; 
+  //decayConstants[6] = md0->lowerlimit;
+  //decayConstants[7] = (md0->upperlimit - md0->lowerlimit) / r.size();
   
   if (mistag) {
     registerObservable(mistag);
     totalEventSize++; 
-    decayConstants[5] = 1; // Flags existence of mistag
+    //decayConstants[5] = 1; // Flags existence of mistag
   } 
 
   std::vector<unsigned int> pindices;
   pindices.push_back(registerConstants(8)); 
-  decayConstants[0] = decayInfo->motherMass;
-  decayConstants[1] = decayInfo->daug1Mass;
-  decayConstants[2] = decayInfo->daug2Mass;
-  decayConstants[3] = decayInfo->daug3Mass;
-  decayConstants[4] = decayInfo->meson_radius;
+  //decayConstants[0] = decayInfo->motherMass;
+  //decayConstants[1] = decayInfo->daug1Mass;
+  //decayConstants[2] = decayInfo->daug2Mass;
+  //decayConstants[3] = decayInfo->daug3Mass;
+  //decayConstants[4] = decayInfo->meson_radius;
   //MEMCPY_TO_SYMBOL(functorConstants, decayConstants, 8*sizeof(fptype), cIndex*sizeof(fptype), cudaMemcpyHostToDevice);  
   
   pindices.push_back(registerParameter(decayInfo->_tau));
@@ -778,16 +779,17 @@ EXEC_TARGET ThreeComplex SpecialDalitzIntegrator::operator () (thrust::tuple<int
   unsigned int* indices = NULL;   
   ThreeComplex ret = device_Tddp_calcIntegrals(binCenterM12, binCenterM13, resonance_i, resonance_j, cudaArray, indices); 
 
-  fptype fakeEvt[10]; // Need room for many observables in case m12 or m13 were assigned a high index in an event-weighted fit. 
-  fakeEvt[indices[indices[0] + 2 + 2]] = binCenterM12;
-  fakeEvt[indices[indices[0] + 2 + 3]] = binCenterM13;
-  unsigned int numResonances = indices[6]; 
-  unsigned int effFunctionIdx = parIndexFromResIndex(numResonances); 
+  //fptype fakeEvt[10]; // Need room for many observables in case m12 or m13 were assigned a high index in an event-weighted fit. 
+  //fakeEvt[indices[indices[0] + 2 + 2]] = binCenterM12;
+  //fakeEvt[indices[indices[0] + 2 + 3]] = binCenterM13;
+  //unsigned int numResonances = indices[6]; 
+  //unsigned int effFunctionIdx = parIndexFromResIndex(numResonances); 
   //if (thrust::get<0>(t) == 19840) {internalDebug1 = BLOCKIDX; internalDebug2 = THREADIDX;}
   //fptype eff = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[effFunctionIdx]])))(fakeEvt, cudaArray, paramIndices + indices[effFunctionIdx + 1]);
 
-  unsigned int funcIdx = 0;
-  fptype eff = callFunction(fakeEvt, &funcIdx, indices); 
+  //unsigned int funcIdx = 0;
+  //fptype eff = callFunction(0, &funcIdx, indices); 
+  fptype eff = 1.0;
   //fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices); 
 
   //if (thrust::get<0>(t) == 19840) {

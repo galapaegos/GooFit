@@ -1,7 +1,7 @@
 #include "DalitzVetoPdf.hh"
 #include "DalitzPlotHelpers.hh" 
 
-EXEC_TARGET fptype device_DalitzVeto (fptype* evt, unsigned int *funcIdx, unsigned int* indices) {
+EXEC_TARGET fptype device_DalitzVeto (unsigned int eventId, unsigned int *funcIdx, unsigned int* indices) {
   int numParams = cudaArray[*indices];
   fptype x         = cudaArray[*indices + 1]; 
   fptype y         = cudaArray[*indices + 2]; 

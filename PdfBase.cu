@@ -7,6 +7,36 @@
 // off on its own in this inline-cuda file, which GooPdf.cu 
 // should include. 
 
+MEM_DEVICE fptype* dev_event_m12;
+MEM_DEVICE fptype* dev_event_m13;
+MEM_DEVICE fptype* dev_event_evtNum;
+
+#define PRINT_CUDA_ERROR(errorMessage)\
+{\
+	cudaError_t err = cudaGetLastError();\
+	if( cudaSuccess != err)\
+	{\
+		printf ("Cuda error: %s in file '%s' in line %i : %s.\n", errorMessage, __FILE__, __LINE__, cudaGetErrorString (err));\
+	}\
+	err = cudaThreadSynchronize ();\
+	if( cudaSuccess != err)\
+	{\
+		printf ("Cuda error: %s in file '%s' in line %i : %s.\n", errorMessage, __FILE__, __LINE__, cudaGetErrorString(err));\
+	}\
+}
+
+#define CUDA_SAFE_CALL_NO_SYNC(call)\
+{\
+	cudaError err = call;\
+	if( cudaSuccess != err)\
+	{\
+		printf ("Cuda error in file '%s' in line %i : %s.", __FILE__, __LINE__, cudaGetErrorString (err));\
+		exit(-1);\
+	}\
+}
+
+#define CUDA_SAFE_CALL(call) CUDA_SAFE_CALL_NO_SYNC(call);
+
 #ifdef CUDAPRINT
 __host__ void PdfBase::copyParams (const std::vector<double>& pars) const {
   if (host_callnumber < 1) {
@@ -191,7 +221,7 @@ __host__ void PdfBase::setIndices () {
     (*v)->index = counter++; 
   }
 
-  int test = totalParams;
+  //int test = totalParams;
 
   //recalculate our indices here, reset:
   totalParams = 0;
@@ -241,7 +271,7 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
 #endif
 
   //fptype *host_array = new fptype[numEntries*dimensions];
-  printf ("numEntries:%i dimensions:%i\n", numEntries, dimensions);
+  //printf ("numEntries:%i dimensions:%i\n", numEntries, dimensions);
   //fptype *host_array = (fptype*)malloc (numEntries*dimensions*sizeof(fptype));
   fptype *host_array = new fptype[numEntries*dimensions];
 
@@ -277,11 +307,6 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
     }
   }
   
-  //for (int i = 0; i < numEntries; i++)
-  //{
-  //  printf ("%i - %f %f %f\n", i, host_array[i*dimensions], host_array[i*dimensions + 1], host_array[i*dimensions + 2]);
-  //}
-
 #ifdef TARGET_MPI
   // we need to fix our observables indexing to reflect having multiple cards
   for (int i = 1; i < numProcs; i++)
@@ -315,8 +340,39 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
   delete [] counts;
   delete [] displacements;
 #else
-  gooMalloc((void**) &dev_event_array, dimensions*numEntries*sizeof(fptype));
-  MEMCPY(dev_event_array, host_array, dimensions*numEntries*sizeof(fptype), cudaMemcpyHostToDevice);
+  //gooMalloc((void**) &dev_event_array, dimensions*numEntries*sizeof(fptype));
+  //MEMCPY(dev_event_array, host_array, dimensions*numEntries*sizeof(fptype), cudaMemcpyHostToDevice);
+  //delete[] host_array; 
+
+  fptype *m12 = new fptype[numEntries];
+  fptype *m13 = new fptype[numEntries];
+  fptype *evt = new fptype[numEntries];
+  for (int i = 0; i < numEntries; i++)
+  {
+    m12[i] = host_array[i*dimensions + 0];
+    m13[i] = host_array[i*dimensions + 1];
+    evt[i] = host_array[i*dimensions + 2];
+  }
+
+  fptype *d_m12;
+  gooMalloc ((void**) &d_m12, numEntries*sizeof (fptype));
+  CUDA_SAFE_CALL(MEMCPY(d_m12, m12, numEntries*sizeof(fptype), cudaMemcpyHostToDevice));
+  CUDA_SAFE_CALL(MEMCPY_TO_SYMBOL(dev_event_m12, &d_m12, sizeof(fptype), 0, cudaMemcpyHostToDevice));
+
+  fptype *d_m13;
+  gooMalloc ((void**) &d_m13, numEntries*sizeof(fptype));
+  CUDA_SAFE_CALL(MEMCPY(d_m13, m13, numEntries*sizeof(fptype), cudaMemcpyHostToDevice));
+  CUDA_SAFE_CALL(MEMCPY_TO_SYMBOL(dev_event_m13, &d_m13, sizeof(fptype), 0, cudaMemcpyHostToDevice));
+
+  fptype *d_evt;
+  gooMalloc ((void**) &d_evt, numEntries*sizeof(fptype));
+  CUDA_SAFE_CALL(MEMCPY(d_evt, evt, numEntries*sizeof(fptype), cudaMemcpyHostToDevice));
+  CUDA_SAFE_CALL(MEMCPY_TO_SYMBOL(dev_event_evtNum, &d_evt, sizeof(fptype), 0, cudaMemcpyHostToDevice));
+
+  delete[] m12;
+  delete[] m13;
+  delete[] evt;
+
   delete[] host_array; 
   //free (host_array);
 #endif
