@@ -11,6 +11,7 @@ MEM_DEVICE fptype* dev_event_m12;
 MEM_DEVICE fptype* dev_event_m13;
 MEM_DEVICE fptype* dev_event_evtNum;
 
+#ifndef TARGET_OMP
 #define PRINT_CUDA_ERROR(errorMessage)\
 {\
 	cudaError_t err = cudaGetLastError();\
@@ -36,6 +37,9 @@ MEM_DEVICE fptype* dev_event_evtNum;
 }
 
 #define CUDA_SAFE_CALL(call) CUDA_SAFE_CALL_NO_SYNC(call);
+#else
+#define CUDA_SAFE_CALL(call)
+#endif
 
 #ifdef CUDAPRINT
 __host__ void PdfBase::copyParams (const std::vector<double>& pars) const {

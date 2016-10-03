@@ -75,9 +75,15 @@ EXEC_TARGET fptype device_DalitzPlot (unsigned int eventId, unsigned int *funcId
   //fptype m12 = evt[0]; 
   //fptype m13 = evt[1];
   //int evtNum = int (FLOOR(0.5 + evt[2]));
+//#ifdef TARGET_CM35
+//  fptype m12 = __ldg(&dev_event_m12[eventId]);
+//  fptype m13 = __ldg(&dev_event_m13[eventId]);
+//  unsigned int evtNum = __ldg(&dev_event_evtNum[eventId]);
+//#else
   fptype m12 = dev_event_m12[eventId];
   fptype m13 = dev_event_m13[eventId];
   unsigned int evtNum = dev_event_evtNum[eventId];
+//#endif
   //printf ("evtNum:%i m12:%f m13:%f funcIdx:%i paramIdx:%i\n", evtNum, m12, m13, *funcIdx, *indices);
   
   int numCons = int (cudaArray[*indices + numParams + 1 + numObs + 1]);
@@ -102,8 +108,14 @@ EXEC_TARGET fptype device_DalitzPlot (unsigned int eventId, unsigned int *funcId
     fptype amp_real = cudaArray[*indices + 1 + i*2];
     fptype amp_imag = cudaArray[*indices + 1 + i*2 + 1];
 
+#if TARGET_CM35 //this is for compute 35+
     fptype me_real = __ldg(&cResonances[i][evtNum].real);
     fptype me_imag = __ldg(&cResonances[i][evtNum].imag);
+#else
+    fptype me_real = cResonances[i][evtNum].real;
+    fptype me_imag = cResonances[i][evtNum].imag;
+#endif
+
     devcomplex<fptype> matrixelement (me_real, me_imag);
     matrixelement.multiply(amp_real, amp_imag); 
     totalAmp += matrixelement;
