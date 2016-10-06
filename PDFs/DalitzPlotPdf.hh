@@ -18,7 +18,7 @@ public:
   __host__ virtual void copyParams (std::vector<Variable*> vars);
   __host__ virtual void getParameters(parCont &ret) const;
   __host__ virtual void recursiveSetIndices ();
-  __host__ virtual fptype normalise ();
+  __host__ virtual fptype normalise (int stream);
   __host__ void setDataSize (unsigned int dataSize, unsigned int evtSize = 3); 
   __host__ void setForceIntegrals (bool f = true) {forceRedoIntegrals = f;}  
 
@@ -50,11 +50,11 @@ private:
   SpecialResonanceCalculator** calculators; 
 };
 
-class SpecialResonanceIntegrator : public thrust::unary_function<thrust::tuple<int, int, int, int, fptype*>, devcomplex<fptype> > {
+class SpecialResonanceIntegrator : public thrust::unary_function<thrust::tuple<int, int, int, int, fptype*, fptype*>, devcomplex<fptype> > {
 public:
   // Class used to calculate integrals of terms BW_i * BW_j^*. 
   SpecialResonanceIntegrator (int pIdx, unsigned int ri, unsigned int rj);
-  EXEC_TARGET devcomplex<fptype> operator () (thrust::tuple<int, int, int, fptype*> t) const;
+  EXEC_TARGET devcomplex<fptype> operator () (thrust::tuple<int, int, int, fptype*, fptype*> t) const;
 private:
 
   unsigned int resonance_i;
@@ -62,11 +62,11 @@ private:
   unsigned int parameters;
 }; 
 
-class SpecialResonanceCalculator : public thrust::unary_function<thrust::tuple<int, int, int, fptype*, int>, devcomplex<fptype> > {
+class SpecialResonanceCalculator : public thrust::unary_function<thrust::tuple<int, int, int, fptype*, fptype*, int>, devcomplex<fptype> > {
 public:
   // Used to create the cached BW values. 
   SpecialResonanceCalculator (int pIdx, unsigned int res_idx); 
-  EXEC_TARGET devcomplex<fptype> operator () (thrust::tuple<int, int, int, fptype*, int> t) const;
+  EXEC_TARGET devcomplex<fptype> operator () (thrust::tuple<int, int, int, fptype*, fptype*, int> t) const;
 
 private:
 

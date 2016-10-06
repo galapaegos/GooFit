@@ -1,15 +1,15 @@
 #include "DalitzVetoPdf.hh"
 #include "DalitzPlotHelpers.hh" 
 
-EXEC_TARGET fptype device_DalitzVeto (unsigned int eventId, unsigned int *funcIdx, unsigned int* indices) {
-  int numParams = cudaArray[*indices];
-  fptype x         = cudaArray[*indices + 1]; 
-  fptype y         = cudaArray[*indices + 2]; 
+EXEC_TARGET fptype device_DalitzVeto (const fptype* __restrict evt, const fptype* __restrict params, unsigned int *funcIdx, unsigned int* indices) {
+  int numParams = params[*indices];
+  fptype x         = params[*indices + 1]; 
+  fptype y         = params[*indices + 2]; 
 
-  fptype motherM   = cudaArray[*indices + 3];
-  fptype d1m       = cudaArray[*indices + 4];
-  fptype d2m       = cudaArray[*indices + 5];
-  fptype d3m       = cudaArray[*indices + 6];
+  fptype motherM   = params[*indices + 3];
+  fptype d1m       = params[*indices + 4];
+  fptype d2m       = params[*indices + 5];
+  fptype d3m       = params[*indices + 6];
 
   fptype motherM2  = motherM*motherM;
   fptype d1m2      = d1m*d1m;
@@ -19,18 +19,18 @@ EXEC_TARGET fptype device_DalitzVeto (unsigned int eventId, unsigned int *funcId
   fptype massSum   = motherM2 + d1m2 + d2m2 + d3m2;
 
   fptype ret = inDalitz(x, y, motherM, d1m, d2m, d3m) ? 1.0 : 0.0; 
-  int numConstants = cudaArray[*indices + 2 + numParams];
+  int numConstants = params[*indices + 2 + numParams];
   int consIdx = numParams + 2;
-  unsigned int numVetos = cudaArray[*indices + consIdx];
+  unsigned int numVetos = params[*indices + consIdx];
 
   fptype z         = massSum - x - y;
 
   for (int i = 0; i < numVetos; ++i) {
     int i2 = i*2;
 
-    unsigned int varIndex = cudaArray[*indices + consIdx + 1 + i];
-    fptype minimum        = cudaArray[*indices + 7 + i2 + 1];
-    fptype maximum        = cudaArray[*indices + 7 + i2 + 2];
+    unsigned int varIndex = params[*indices + consIdx + 1 + i];
+    fptype minimum        = params[*indices + 7 + i2 + 1];
+    fptype maximum        = params[*indices + 7 + i2 + 2];
     fptype currDalitzVar = (PAIR_12 == varIndex ? x : PAIR_13 == varIndex ? y : z);
 
     ret *= ((currDalitzVar < maximum) && (currDalitzVar > minimum)) ? 0.0 : 1.0;

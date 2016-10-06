@@ -36,6 +36,10 @@ int main (int argc, char** argv) {
     return -1;
   }
 
+  cudaDeviceSetCacheConfig (cudaFuncCachePreferShared);
+  //cudaDeviceSetSharedMemConfig (cudaSharedMemBankSizeEightByte);
+  //cudaSetDeviceFlags (cudaDeviceLmemResizeToMax);
+
 #ifdef TARGET_MPI
   MPI_Init(&argc, &argv);
 #endif
@@ -130,6 +134,7 @@ int main (int argc, char** argv) {
     totalPdf += pdfVals[0][i]; 
   }
 
+  /*
   for (int i = 0; i < xvar->numbins; ++i) {
     double val = pdfHist.GetBinContent(i+1); 
     val /= totalPdf; 
@@ -146,6 +151,7 @@ int main (int argc, char** argv) {
     val *= totalData;
     bkgHist.SetBinContent(i+1, val); 
   }
+  */
 
   xvarHist.SetMarkerStyle(8);
   xvarHist.SetMarkerSize(0.5);

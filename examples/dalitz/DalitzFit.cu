@@ -408,6 +408,7 @@ int main (int argc, char** argv) {
   //cudaDeviceGetLimit (&stack, cudaLimitStackSize);
   //printf ("stack: %i\n", stack);
   //cudaDeviceSetLimit(cudaLimitStackSize, 4096);
+  cudaDeviceSetCacheConfig (cudaFuncCachePreferShared);
 
 #ifdef TARGET_MPI
   MPI_Init(&argc, &argv);

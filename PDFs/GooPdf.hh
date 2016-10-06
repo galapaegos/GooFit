@@ -22,8 +22,8 @@ EXEC_TARGET int dev_powi (int base, int exp); // Implemented in SmoothHistogramP
 
 #define CALLS_TO_PRINT 10
 //pass event, function, parameters.  each need to be incremented accordingly based on PDF 
-typedef fptype (*device_function_ptr) (unsigned int, unsigned int*, unsigned int*);            // Pass event, parameters, index into parameters. 
-typedef fptype (*device_metric_ptr) (fptype, fptype*, unsigned int*); 
+typedef fptype (*device_function_ptr) (const fptype* __restrict, const fptype* __restrict, unsigned int*, unsigned int*); // Pass event, parameters, func, index into parameters. 
+typedef fptype (*device_metric_ptr) (fptype, fptype*, const fptype &); 
 
 extern void* host_fcn_ptr;
 
@@ -34,10 +34,10 @@ public:
 
   GooPdf (Variable* x, std::string n);
   virtual ~GooPdf ();
-  __host__ virtual double calculateNLL ();
+  __host__ virtual double calculateNLL (int stream);
   __host__ void evaluateAtPoints (std::vector<fptype>& points) const; 
   __host__ void evaluateAtPoints (Variable* var, std::vector<fptype>& res); 
-  __host__ virtual fptype normalise ();
+  __host__ virtual fptype normalise (int stream);
   __host__ virtual fptype integrate (fptype lo, fptype hi) {return 0;}
   __host__ virtual bool hasAnalyticIntegral () const {return false;} 
   __host__ fptype getValue (); 
@@ -55,19 +55,19 @@ public:
   __host__ void setDebugMask (int mask, bool setSpecific = true) const; 
 
 protected:
-  __host__ virtual double sumOfNll (int numVars) const; 
+  __host__ virtual double sumOfNll (int stream, int numVars) const; 
   MetricTaker* logger; 
 private:
 
 };
 
-class MetricTaker : public thrust::unary_function<thrust::tuple<int, fptype*, int>, fptype> {
+class MetricTaker : public thrust::unary_function<thrust::tuple<int, fptype*, fptype*, int>, fptype> {
 public:
 
   MetricTaker (PdfBase* dat, void* dev_functionPtr); 
   MetricTaker (int fIdx, int pIdx);
-  EXEC_TARGET fptype operator () (thrust::tuple<int, fptype*, int> t) const;           // Event number, dev_event_array (pass this way for nvcc reasons), event size 
-  EXEC_TARGET fptype operator () (thrust::tuple<int, int, fptype*> t) const;           // Event number, event size, normalisation ranges (for binned stuff, eg integration)
+  EXEC_TARGET fptype operator () (thrust::tuple<int, fptype*, fptype*, int> t) const;           // Event number, dev_event_array (pass this way for nvcc reasons), event size 
+  EXEC_TARGET fptype operator () (thrust::tuple<int, int, fptype*, fptype*> t) const;           // Event number, event size, normalisation ranges (for binned stuff, eg integration)
 
 private:
 

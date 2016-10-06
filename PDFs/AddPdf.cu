@@ -1,8 +1,8 @@
 #include "AddPdf.hh"
 
-EXEC_TARGET fptype device_AddPdfs (unsigned int eventId, unsigned int *funcIdx, unsigned int* indices) { 
+EXEC_TARGET fptype device_AddPdfs (const fptype* __restrict evt, const fptype* __restrict params, unsigned int *funcIdx, unsigned int* indices) {
   //addition example - numParameters is 5
-  int numParameters = cudaArray[*indices]; 
+  int numParameters = params[*indices]; 
   fptype ret = 0;
   fptype totalWeight = 0; 
 
@@ -12,18 +12,18 @@ EXEC_TARGET fptype device_AddPdfs (unsigned int eventId, unsigned int *funcIdx, 
     //totalWeight += p[indices[i + 2]]   (0.9)
 
     //
-    fptype weight = cudaArray[*indices + i + 1];
+    fptype weight = params[*indices + i + 1];
 
     *indices += 7;
 
-    int np = cudaArray[*indices];
-    int obs = cudaArray[*indices + np + 1];
-    int con = cudaArray[*indices + np + 1 + obs + 1];
-    fptype norm = cudaArray[*indices + np + 1 + obs + 1 + con + 1 + 1];
+    int np = params[*indices];
+    int obs = params[*indices + np + 1];
+    int con = params[*indices + np + 1 + obs + 1];
+    fptype norm = params[*indices + np + 1 + obs + 1 + con + 1 + 1];
 
     totalWeight += weight;
     //first call to callFunction is device_Gaussian
-    fptype curr = callFunction(eventId, funcIdx, indices); 
+    fptype curr = callFunction(evt, params, funcIdx, indices); 
 
     ret += weight * curr * norm; 
 
@@ -33,10 +33,10 @@ EXEC_TARGET fptype device_AddPdfs (unsigned int eventId, unsigned int *funcIdx, 
 
   }
 
-  numParameters = cudaArray[*indices];
-  int obs = cudaArray[*indices + numParameters + 1];
-  int con = cudaArray[*indices + numParameters + 1 + obs + 1];
-  fptype normFactors = cudaArray[*indices + numParameters + 1 + obs + 1 + con + 1 + 1];
+  numParameters = params[*indices];
+  int obs = params[*indices + numParameters + 1];
+  int con = params[*indices + numParameters + 1 + obs + 1];
+  fptype normFactors = params[*indices + numParameters + 1 + obs + 1 + con + 1 + 1];
 
   // numParameters does not count itself. So the array structure for two functions is
   // nP | F P w | F P
@@ -44,7 +44,7 @@ EXEC_TARGET fptype device_AddPdfs (unsigned int eventId, unsigned int *funcIdx, 
   //fptype last = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[numParameters-1]])))(evt, p, paramIndices + indices[numParameters]);
 
   //addition example calls device_Polynomial
-  fptype last = callFunction(eventId, funcIdx, indices);
+  fptype last = callFunction(evt, params, funcIdx, indices);
   ret += (1 - totalWeight) * last * normFactors; 
 
   //if ((THREADIDX < 50) && (isnan(ret))) printf("NaN final component %f %f\n", last, totalWeight); 
@@ -56,7 +56,7 @@ EXEC_TARGET fptype device_AddPdfs (unsigned int eventId, unsigned int *funcIdx, 
   return ret; 
 }
 
-EXEC_TARGET fptype device_AddPdfsExt (unsigned int eventId, unsigned int* funcIdx, unsigned int* indices) { 
+EXEC_TARGET fptype device_AddPdfsExt (const fptype* __restrict evt, const fptype* __restrict params, unsigned int* funcIdx, unsigned int* indices) { 
   // numParameters does not count itself. So the array structure for two functions is
   // nP | F P w | F P w
   // in which nP = 6. 
@@ -68,9 +68,9 @@ EXEC_TARGET fptype device_AddPdfsExt (unsigned int eventId, unsigned int* funcId
   for (int i = 1; i < numParameters; i += 3) {    
     *indices += 3;
     //fptype curr = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[i]])))(evt, p, paramIndices + indices[i+1]);
-    fptype curr = callFunction(eventId, funcIdx, indices); 
-    fptype weight = cudaArray[*indices + i+2];
-    ret += weight * curr * cudaArray[*indices + i+1]; 
+    fptype curr = callFunction(evt, params, funcIdx, indices); 
+    fptype weight = params[*indices + i+2];
+    ret += weight * curr * params[*indices + i+1]; 
 
     totalWeight += weight; 
     //if ((gpuDebug & 1) && (THREADIDX == 0) && (0 == BLOCKIDX)) 
@@ -197,7 +197,7 @@ __host__ void AddPdf::recursiveSetIndices ()
   generateNormRange ();
 }
 
-__host__ fptype AddPdf::normalise () {
+__host__ fptype AddPdf::normalise (int stream) {
   //if (cpuDebug & 1)
   //std::cout << "Normalising AddPdf " << getName() << std::endl;
 
@@ -212,12 +212,12 @@ __host__ fptype AddPdf::normalise () {
     fptype weight = host_params[parametersIdx];
     totalWeight += weight;
     //curr is 2.506628274631
-    fptype curr = components[i]->normalise(); 
+    fptype curr = components[i]->normalise(stream); 
     ret += curr*weight;
   }
 
   //last is 10
-  fptype last = components.back()->normalise(); 
+  fptype last = components.back()->normalise(stream); 
   if (extended) {
     //Whoah, must test this out.  This is where it *should* be
     fptype lastWeight = host_params[parametersIdx + + 3*components.size()];
@@ -247,24 +247,37 @@ __host__ fptype AddPdf::normalise () {
   return ret; 
 }
 
-__host__ double AddPdf::sumOfNll (int numVars) const {
+__host__ double AddPdf::sumOfNll (int stream, int numVars) const {
   static thrust::plus<double> cudaPlus;
   thrust::constant_iterator<int> eventSize(numVars); 
   thrust::constant_iterator<fptype*> arrayAddress(dev_event_array); 
+  //thrust::constant_iterator<fptype*> paramAddress(dev_param_array); 
   double dummy = 0;
   thrust::counting_iterator<int> eventIndex(0); 
 
 #ifdef TARGET_MPI
-  double r = thrust::transform_reduce(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, arrayAddress, eventSize)), 
-					thrust::make_zip_iterator(thrust::make_tuple(eventIndex + m_iEventsPerTask, arrayAddress, eventSize)),
+  double r = thrust::transform_reduce(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, arrayAddress, paramAddress, eventSize)), 
+					thrust::make_zip_iterator(thrust::make_tuple(eventIndex + m_iEventsPerTask, arrayAddress, paramAddress, eventSize)),
 					*logger, dummy, cudaPlus);
 
   double ret;
   MPI_Allreduce(&r, &ret, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #else
-  double ret = thrust::transform_reduce(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, arrayAddress, eventSize)), 
-					thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, eventSize)),
+  double ret = 0.0;
+  if (stream == 1)
+  {
+    thrust::constant_iterator<fptype*> paramAddress(dev_param_array_s1); 
+    thrust::transform_reduce(thrust::cuda::par.on(m_stream1), thrust::make_zip_iterator(thrust::make_tuple(eventIndex, arrayAddress, paramAddress, eventSize)), 
+					thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, paramAddress, eventSize)),
 					*logger, dummy, cudaPlus); 
+  }
+  else if (stream == 2)
+  {
+    thrust::constant_iterator<fptype*> paramAddress(dev_param_array_s2);
+    thrust::transform_reduce(thrust::cuda::par.on(m_stream2), thrust::make_zip_iterator(thrust::make_tuple(eventIndex, arrayAddress, paramAddress, eventSize)), 
+					thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, paramAddress, eventSize)),
+					*logger, dummy, cudaPlus); 
+  }
 #endif
 
   if (extended) {

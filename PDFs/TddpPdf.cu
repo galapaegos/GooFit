@@ -73,10 +73,10 @@ EXEC_TARGET inline int parIndexFromResIndex (const int &resIndex) {
   return resonanceOffset + resIndex*resonanceSize; 
 }
 
-EXEC_TARGET devcomplex<fptype> getResonanceAmplitude (fptype m12, fptype m13, fptype m23, 
+EXEC_TARGET devcomplex<fptype> getResonanceAmplitude (fptype m12, fptype m13, fptype m23, const fptype* __restrict params,
 						     unsigned int *functionIdx, unsigned int *pIndex) {
   resonance_function_ptr func = reinterpret_cast<resonance_function_ptr>(device_function_table[*functionIdx]);
-  return (*func)(m12, m13, m23, pIndex); 
+  return (*func)(m12, m13, m23, params, pIndex); 
 }
 
 EXEC_TARGET ThreeComplex device_Tddp_calcIntegrals (fptype m12, fptype m13, int res_i, int res_j, fptype* p, unsigned int* indices) {
@@ -93,10 +93,10 @@ EXEC_TARGET ThreeComplex device_Tddp_calcIntegrals (fptype m12, fptype m13, int 
   // grid points - we only care about totals. 
   int idx = indices[1];
 
-  fptype motherMass = cudaArray[idx + 0]; 
-  fptype daug1Mass  = cudaArray[idx + 1]; 
-  fptype daug2Mass  = cudaArray[idx + 2]; 
-  fptype daug3Mass  = cudaArray[idx + 3];  
+  fptype motherMass = p[idx + 0]; 
+  fptype daug1Mass  = p[idx + 1]; 
+  fptype daug2Mass  = p[idx + 2]; 
+  fptype daug3Mass  = p[idx + 3];  
 
   ThreeComplex ret; 
   if (!inDalitz(m12, m13, motherMass, daug1Mass, daug2Mass, daug3Mass)) return ret;
@@ -109,19 +109,19 @@ EXEC_TARGET ThreeComplex device_Tddp_calcIntegrals (fptype m12, fptype m13, int 
   //fptype amp_imag             = p[indices[parameter_i+1]];
   unsigned int functn_i = indices[parameter_i+2];
   unsigned int params_i = indices[parameter_i+3];
-  devcomplex<fptype> ai = getResonanceAmplitude(m12, m13, m23, &functn_i, &params_i);
-  devcomplex<fptype> bi = getResonanceAmplitude(m13, m12, m23, &functn_i, &params_i);
+  devcomplex<fptype> ai = getResonanceAmplitude(m12, m13, m23, p, &functn_i, &params_i);
+  devcomplex<fptype> bi = getResonanceAmplitude(m13, m12, m23, p, &functn_i, &params_i);
 
   unsigned int functn_j = indices[parameter_j+2];
   unsigned int params_j = indices[parameter_j+3];
-  devcomplex<fptype> aj = conj(getResonanceAmplitude(m12, m13, m23, &functn_j, &params_j));
-  devcomplex<fptype> bj = conj(getResonanceAmplitude(m13, m12, m23, &functn_j, &params_j)); 
+  devcomplex<fptype> aj = conj(getResonanceAmplitude(m12, m13, m23, p, &functn_j, &params_j));
+  devcomplex<fptype> bj = conj(getResonanceAmplitude(m13, m12, m23, p, &functn_j, &params_j)); 
 
   ret = ThreeComplex((ai*aj).real, (ai*aj).imag, (ai*bj).real, (ai*bj).imag, (bi*bj).real, (bi*bj).imag);
   return ret; 
 }
 
-EXEC_TARGET fptype device_Tddp (unsigned int eventId, unsigned int *funcIdx, unsigned int* indices) {
+EXEC_TARGET fptype device_Tddp (const fptype* __restrict evt, const fptype* __restrict params, unsigned int *funcIdx, unsigned int* indices) {
   int idx[14];
   idx[ 0] = indices[0];
   idx[ 1] = indices[1];
@@ -143,16 +143,16 @@ EXEC_TARGET fptype device_Tddp (unsigned int eventId, unsigned int *funcIdx, uns
 
   *funcIdx += 1;
 
-  fptype motherMass = cudaArray[idx[1] + 0]; 
-  fptype daug1Mass  = cudaArray[idx[1] + 1]; 
-  fptype daug2Mass  = cudaArray[idx[1] + 2]; 
-  fptype daug3Mass  = cudaArray[idx[1] + 3]; 
+  fptype motherMass = params[idx[1] + 0]; 
+  fptype daug1Mass  = params[idx[1] + 1]; 
+  fptype daug2Mass  = params[idx[1] + 2]; 
+  fptype daug3Mass  = params[idx[1] + 3]; 
 
-  fptype m12 = dev_event_m12[eventId]; 
-  fptype m13 = dev_event_m13[eventId];
+  fptype m12 = evt[0]; 
+  fptype m13 = evt[1];
 
   if (!inDalitz(m12, m13, motherMass, daug1Mass, daug2Mass, daug3Mass)) return 0; 
-  int evtNum = (int) FLOOR(0.5 + dev_event_evtNum[eventId]); 
+  int evtNum = (int) FLOOR(0.5 + evt[2]); 
 
   devcomplex<fptype> sumWavesA(0, 0);
   devcomplex<fptype> sumWavesB(0, 0); 
@@ -164,8 +164,8 @@ EXEC_TARGET fptype device_Tddp (unsigned int eventId, unsigned int *funcIdx, uns
 
   for (int i = 0; i < numResonances; ++i) {
     int paramIndex  = parIndexFromResIndex(i);
-    fptype amp_real = cudaArray[indices[paramIndex+0]];
-    fptype amp_imag = cudaArray[indices[paramIndex+1]];
+    fptype amp_real = params[indices[paramIndex+0]];
+    fptype amp_imag = params[indices[paramIndex+1]];
 
     WaveHolder wh = cWaves[cacheToUse][enr + i];
 
@@ -180,13 +180,12 @@ EXEC_TARGET fptype device_Tddp (unsigned int eventId, unsigned int *funcIdx, uns
     sumWavesB += matrixelement; 
   } 
 
-  fptype _tau     = cudaArray[idx[2]];
-  fptype _xmixing = cudaArray[idx[3]];
-  fptype _ymixing = cudaArray[idx[4]];
- 
-  //change these to be separate labeled arrays 
-  fptype _time    = cudaArray[idx[8]];
-  fptype _sigma   = cudaArray[idx[9]];
+  fptype _tau     = params[idx[2]];
+  fptype _xmixing = params[idx[3]];
+  fptype _ymixing = params[idx[4]];
+  
+  fptype _time    = evt[idx[8]];
+  fptype _sigma   = evt[idx[9]];
 
   //if ((gpuDebug & 1) && (0 == BLOCKIDX) && (0 == THREADIDX)) 
   //if (0 == evtNum) printf("TDDP: (%f, %f) (%f, %f)\n", sumWavesA.real, sumWavesA.imag, sumWavesB.real, sumWavesB.imag);
@@ -218,9 +217,9 @@ EXEC_TARGET fptype device_Tddp (unsigned int eventId, unsigned int *funcIdx, uns
     // In this case there are multiple resolution functions, they are stored after the efficiency function,
     // and which one we use depends on the measured mother-particle mass. 
     md0_offset = 1; 
-    fptype massd0 = cudaArray[idx[13]]; 
-    fptype minMass = cudaArray[idx[1] + 6];
-    fptype md0Step = cudaArray[idx[1] + 7];
+    fptype massd0 = evt[idx[13]]; 
+    fptype minMass = params[idx[1] + 6];
+    fptype md0Step = params[idx[1] + 7];
     int res_to_use = (massd0 <= minMass) ? 0 : (int) FLOOR((massd0 - minMass) / md0Step); 
     int maxFcn     = indices[2 + effFunctionIdx]; 
     if (res_to_use > maxFcn) res_to_use = maxFcn; 
@@ -251,11 +250,11 @@ EXEC_TARGET fptype device_Tddp (unsigned int eventId, unsigned int *funcIdx, uns
   // which don't change even though we tagged a D0 as D0bar. 
 
   fptype t = 0;  
-  fptype mistag = cudaArray[idx[1] + 5]; 
+  fptype mistag = params[idx[1] + 5]; 
   if (mistag > 0) { // This should be either true or false for all events, so no branch is caused.
     // See header file for explanation of 'mistag' variable - it is actually the probability
     // of having the correct sign, given that we have a correctly reconstructed D meson. 
-    mistag = cudaArray[indices[md0_offset + 7 + idx[0]]]; 
+    mistag = params[indices[md0_offset + 7 + idx[0]]]; 
     ret *= mistag; 
 
     ret += (1 - mistag) * (*(reinterpret_cast<device_resfunction_ptr>(device_function_table[resFunctionIdx])))(term1, -term2, sumWavesA.real, -sumWavesA.imag,
@@ -263,7 +262,7 @@ EXEC_TARGET fptype device_Tddp (unsigned int eventId, unsigned int *funcIdx, uns
 													   &t, &(indices[resFunctionPar])); 
   }
    
-  fptype eff = callFunction(eventId, &effFunctionIdx, indices); 
+  fptype eff = callFunction(evt, params, &effFunctionIdx, indices); 
 
   //internalDebug = 0; 
   ret *= eff;
@@ -777,19 +776,19 @@ EXEC_TARGET ThreeComplex SpecialDalitzIntegrator::operator () (thrust::tuple<int
 
   //if (0 == THREADIDX) cuPrintf("%i %i %i %f %f operator\n", thrust::get<0>(t), thrust::get<0>(t) % numBinsM12, globalBinNumber, binCenterM12, binCenterM13);
   unsigned int* indices = NULL;   
-  ThreeComplex ret = device_Tddp_calcIntegrals(binCenterM12, binCenterM13, resonance_i, resonance_j, cudaArray, indices); 
+  fptype *params = NULL;
+  ThreeComplex ret = device_Tddp_calcIntegrals(binCenterM12, binCenterM13, resonance_i, resonance_j, params, indices); 
 
-  //fptype fakeEvt[10]; // Need room for many observables in case m12 or m13 were assigned a high index in an event-weighted fit. 
-  //fakeEvt[indices[indices[0] + 2 + 2]] = binCenterM12;
-  //fakeEvt[indices[indices[0] + 2 + 3]] = binCenterM13;
+  fptype fakeEvt[10]; // Need room for many observables in case m12 or m13 were assigned a high index in an event-weighted fit. 
+  fakeEvt[indices[indices[0] + 2 + 2]] = binCenterM12;
+  fakeEvt[indices[indices[0] + 2 + 3]] = binCenterM13;
   //unsigned int numResonances = indices[6]; 
   //unsigned int effFunctionIdx = parIndexFromResIndex(numResonances); 
   //if (thrust::get<0>(t) == 19840) {internalDebug1 = BLOCKIDX; internalDebug2 = THREADIDX;}
   //fptype eff = (*(reinterpret_cast<device_function_ptr>(device_function_table[indices[effFunctionIdx]])))(fakeEvt, cudaArray, paramIndices + indices[effFunctionIdx + 1]);
 
-  //unsigned int funcIdx = 0;
-  //fptype eff = callFunction(0, &funcIdx, indices); 
-  fptype eff = 1.0;
+  unsigned int funcIdx = 0;
+  fptype eff = callFunction(fakeEvt, params, &funcIdx, indices); 
   //fptype eff = callFunction(fakeEvt, indices[effFunctionIdx], indices); 
 
   //if (thrust::get<0>(t) == 19840) {
@@ -826,16 +825,17 @@ EXEC_TARGET WaveHolder SpecialWaveCalculator::operator () (thrust::tuple<int, fp
 
   int evtNum = thrust::get<0>(t); 
   fptype* evt = thrust::get<1>(t) + (evtNum * thrust::get<2>(t)); 
+  fptype* params = NULL;
 
   unsigned int* indices = NULL;   // Jump to TDDP position within parameters array
 
   fptype m12 = evt[indices[4 + indices[0]]]; 
   fptype m13 = evt[indices[5 + indices[0]]];
 
-  fptype motherMass = cudaArray[indices[1] + 0]; 
-  fptype daug1Mass  = cudaArray[indices[1] + 1]; 
-  fptype daug2Mass  = cudaArray[indices[1] + 2]; 
-  fptype daug3Mass  = cudaArray[indices[1] + 3];  
+  fptype motherMass = params[indices[1] + 0]; 
+  fptype daug1Mass  = params[indices[1] + 1]; 
+  fptype daug2Mass  = params[indices[1] + 2]; 
+  fptype daug3Mass  = params[indices[1] + 3];  
 
   if (!inDalitz(m12, m13, motherMass, daug1Mass, daug2Mass, daug3Mass)) return ret;
   fptype m23 = motherMass*motherMass + daug1Mass*daug1Mass + daug2Mass*daug2Mass + daug3Mass*daug3Mass - m12 - m13; 
@@ -844,8 +844,8 @@ EXEC_TARGET WaveHolder SpecialWaveCalculator::operator () (thrust::tuple<int, fp
   unsigned int functn_i = indices[parameter_i+2];
   unsigned int params_i = indices[parameter_i+3];
 
-  devcomplex<fptype> ai = getResonanceAmplitude(m12, m13, m23, &functn_i, &params_i);
-  devcomplex<fptype> bi = getResonanceAmplitude(m13, m12, m23, &functn_i, &params_i);
+  devcomplex<fptype> ai = getResonanceAmplitude(m12, m13, m23, params, &functn_i, &params_i);
+  devcomplex<fptype> bi = getResonanceAmplitude(m13, m12, m23, params, &functn_i, &params_i);
 
   //printf("Amplitudes %f, %f => (%f %f) (%f %f)\n", m12, m13, ai.real, ai.imag, bi.real, bi.imag);
 

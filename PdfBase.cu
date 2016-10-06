@@ -7,10 +7,6 @@
 // off on its own in this inline-cuda file, which GooPdf.cu 
 // should include. 
 
-MEM_DEVICE fptype* dev_event_m12;
-MEM_DEVICE fptype* dev_event_m13;
-MEM_DEVICE fptype* dev_event_evtNum;
-
 #ifndef TARGET_OMP
 #define PRINT_CUDA_ERROR(errorMessage)\
 {\
@@ -62,7 +58,7 @@ __host__ void PdfBase::copyParams (const std::vector<double>& pars) const {
   if (host_callnumber < 1) {
     std::cout << std::endl; 
   }
-  MEMCPY_TO_SYMBOL(cudaArray, host_params, pars.size()*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(cudaArray, host_params, pars.size()*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 }
 #else 
 __host__ void PdfBase::copyParams (const std::vector<double>& pars) const {
@@ -78,14 +74,17 @@ __host__ void PdfBase::copyParams (const std::vector<double>& pars) const {
     }
   }
 
-  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 }
 #endif
 
-__host__ void PdfBase::copy (std::vector<Variable*> vars)
+__host__ void PdfBase::copy (int stream, std::vector<Variable*> vars)
 {
   copyParams (vars);
-  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  if (stream == 1)
+    cudaMemcpyAsync(dev_param_array_s1, host_params, totalParams*sizeof(fptype), cudaMemcpyHostToDevice, m_stream1); 
+  else if (stream == 2)
+    cudaMemcpyAsync(dev_param_array_s2, host_params, totalParams*sizeof(fptype), cudaMemcpyHostToDevice, m_stream2); 
 }
 
 __host__ void PdfBase::copyParams (std::vector<Variable*> vars)
@@ -173,7 +172,11 @@ __host__ void PdfBase::initialiseIndices (std::vector<unsigned int> pindices) {
 	    << "normalisation: " << host_params[normalisationIdx - 1] << " " 
 	    << std::endl; 
 
-  MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
+  //brad: allocate two streams here:
+  cudaStreamCreate(&m_stream1);
+  cudaStreamCreate(&m_stream2);
+  //gooMalloc((void**) &cudaArray, dimensions*mycount*sizeof(fptype));
+  //MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 }
 
 __host__ void PdfBase::recursiveSetIndices ()
@@ -233,6 +236,9 @@ __host__ void PdfBase::setIndices () {
 
   recursiveSetIndices(); 
 
+  //allocate total amount of parameters
+  gooMalloc((void**) &dev_param_array_s1, totalParams*sizeof(fptype));
+  gooMalloc((void**) &dev_param_array_s2, totalParams*sizeof(fptype));
   //MEMCPY_TO_SYMBOL(device_function_table, host_function_table, num_device_functions*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
   //MEMCPY_TO_SYMBOL(cudaArray, host_params, totalParams*sizeof(fptype), 0, cudaMemcpyHostToDevice); 
 }
@@ -344,10 +350,11 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
   delete [] counts;
   delete [] displacements;
 #else
-  //gooMalloc((void**) &dev_event_array, dimensions*numEntries*sizeof(fptype));
-  //MEMCPY(dev_event_array, host_array, dimensions*numEntries*sizeof(fptype), cudaMemcpyHostToDevice);
-  //delete[] host_array; 
+  gooMalloc((void**) &dev_event_array, dimensions*numEntries*sizeof(fptype));
+  MEMCPY(dev_event_array, host_array, dimensions*numEntries*sizeof(fptype), cudaMemcpyHostToDevice);
+  delete[] host_array; 
 
+#if 0
   fptype *m12 = new fptype[numEntries];
   fptype *m13 = new fptype[numEntries];
   fptype *evt = new fptype[numEntries];
@@ -378,6 +385,7 @@ __host__ void PdfBase::setData (UnbinnedDataSet* data)
   delete[] evt;
 
   delete[] host_array; 
+#endif
   //free (host_array);
 #endif
 }

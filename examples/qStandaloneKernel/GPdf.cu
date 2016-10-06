@@ -89,10 +89,10 @@ MEM_DEVICE device_function_ptr ptr_to_Landau = device_Landau;
 // would be in PdfBase. 
 
 // Device-side, translation-unit constrained. 
-MEM_CONSTANT fptype cudaArray[maxParams];           // Holds device-side fit parameters. 
-MEM_CONSTANT unsigned int paramIndices[maxParams];  // Holds functor-specific indices into cudaArray. Also overloaded to hold integer constants (ie parameters that cannot vary.) 
-MEM_CONSTANT fptype functorConstants[maxParams];    // Holds non-integer constants. Notice that first entry is number of events. 
-MEM_CONSTANT fptype normalisationFactors[maxParams]; 
+MEM_CONSTANT fptype cudaArray[1000];           // Holds device-side fit parameters. 
+MEM_CONSTANT unsigned int paramIndices[1000];  // Holds functor-specific indices into cudaArray. Also overloaded to hold integer constants (ie parameters that cannot vary.) 
+MEM_CONSTANT fptype functorConstants[1000];    // Holds non-integer constants. Notice that first entry is number of events. 
+MEM_CONSTANT fptype normalisationFactors[1000]; 
 
 // For debugging 
 MEM_CONSTANT int callnumber; 

@@ -1,10 +1,10 @@
 #include "GaussianPdf.hh"
 
-EXEC_TARGET fptype device_Gaussian (unsigned int eventId, unsigned int* funcIdx, unsigned int* indices)
+EXEC_TARGET fptype device_Gaussian (const fptype* __restrict evt, const fptype* __restrict params, unsigned int* funcIdx, unsigned int* indices)
 {
   //int tidx = blockDim.x *blockIdx.x + threadIdx.x;
 
-  fptype x = dev_event_m12[eventId];//indices[2 + indices[0]]]; 
+  fptype x = evt[0];//indices[2 + indices[0]]]; 
 
   //__shared__ fptype idx[2];
   //if (THREADIDX == 0)
@@ -15,8 +15,8 @@ EXEC_TARGET fptype device_Gaussian (unsigned int eventId, unsigned int* funcIdx,
 
    //__syncthreads();
   
-  fptype mean = cudaArray[*indices + 1];
-  fptype sigma = cudaArray[*indices + 2];
+  fptype mean = params[*indices + 1];
+  fptype sigma = params[*indices + 2];
 
   //fptype ret = EXP(-0.5*(x-idx[0])*(x-idx[0])/(idx[1]*idx[1]));
   fptype ret = EXP(-0.5*(x-mean)*(x-mean)/(sigma*sigma));

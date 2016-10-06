@@ -20,7 +20,8 @@ typedef thrust::zip_iterator<EventTuple> EventIterator;
 
 const int maxParams = 4000; 
 extern fptype* dev_event_array;
-
+extern fptype* dev_param_array_s1;
+extern fptype* dev_param_array_s2;
 extern fptype host_normalisation[maxParams];
 extern fptype host_params[maxParams];
 extern unsigned int host_indices[maxParams]; 
@@ -35,8 +36,8 @@ public:
 
   enum Specials {ForceSeparateNorm = 1, ForceCommonNorm = 2}; 
 
-  __host__ virtual double calculateNLL () = 0;
-  __host__ virtual fptype normalise () = 0;
+  __host__ virtual double calculateNLL (int stream) = 0;
+  __host__ virtual fptype normalise (int stream) = 0;
   __host__ void initialiseIndices (std::vector<unsigned int> pindices); 
 
   __host__ void populateCudaArray (const int &params, const int &observables, const int &constants, const int &norms);
@@ -51,7 +52,7 @@ public:
   __host__ void addSpecialMask (int m) {specialMask |= m;}
   __host__ void copyParams (const std::vector<double>& pars) const;
   //todo: this is a recursive copy for each component, don't use the copyParams
-  __host__ void copy (std::vector<Variable*> updates);
+  __host__ void copy (int stream, std::vector<Variable*> updates);
   __host__ virtual void copyParams (std::vector<Variable*> updates); 
   //__host__ void copyNormFactors () const;
   __host__ void generateNormRange (); 
@@ -119,6 +120,8 @@ protected:
   void setNumPerTask (PdfBase *p, const int &c);
 
   __host__ virtual void setIndices ();
+
+  cudaStream_t m_stream1, m_stream2;
 
 private:
   std::string name; 

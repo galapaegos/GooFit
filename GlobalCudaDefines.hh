@@ -2,6 +2,7 @@
 #define __GLOBAL_CUDA_HH__
 
 #include <thrust/functional.h> // Needed for Thrust constants
+#include <thrust/system/cuda/execution_policy.h>
 #include <cmath> 
 #include <string> 
 using namespace std; 
@@ -45,8 +46,8 @@ enum gooError {gooSuccess = 0, gooErrorMemoryAllocation};
 #define SYNCH cudaDeviceSynchronize 
 #define THREAD_SYNCH __syncthreads(); 
 #define DEVICE_VECTOR thrust::device_vector
-#define MEMCPY(target, source, count, direction) cudaMemcpy(target, source, count, direction) 
-#define MEMCPY_TO_SYMBOL(target, source, count, offset, direction) cudaMemcpyToSymbol(target, source, count, offset, direction)
+#define MEMCPY(target, source, count, direction) cudaMemcpyAsync(target, source, count, direction) 
+#define MEMCPY_TO_SYMBOL(target, source, count, offset, direction) cudaMemcpyToSymbolAsync(target, source, count, offset, direction)
 #define GET_FUNCTION_ADDR(fname) cudaMemcpyFromSymbol((void**) &host_fcn_ptr, fname, sizeof(void*))
 #define MEMCPY_FROM_SYMBOL(target, source, count, offset, direction) cudaMemcpyFromSymbol(target, source, count, offset, direction)
 // For CUDA case, just use existing errors, renamed

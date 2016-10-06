@@ -3,7 +3,7 @@
 
 #include "GooPdf.hh" 
 #include "devcomplex.hh" 
-typedef devcomplex<fptype> (*resonance_function_ptr) (fptype, fptype, fptype, unsigned int*); 
+typedef devcomplex<fptype> (*resonance_function_ptr) (fptype, fptype, fptype, const fptype* __restrict, unsigned int*); 
 
 class ResonancePdf : public GooPdf {
   // Service class intended to hold parametrisations of

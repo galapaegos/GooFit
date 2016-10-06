@@ -74,7 +74,7 @@ void FitManager::getMinuitValues () const {
   }
 }
 
-void FitFun(int &npar, double *gin, double &fun, double *fp, int iflag) {
+void FitFun(int &stream, int &npar, double *gin, double &fun, double *fp, int iflag) {
   //vector<double> pars;
   // Notice that npar is number of variable parameters, not total. 
   //pars.resize(numPars); 
@@ -108,10 +108,10 @@ void FitFun(int &npar, double *gin, double &fun, double *fp, int iflag) {
   //  printf ("variable:%s value:%f blind:%f counter:%i\n", vars[j]->name.c_str (), vars[j]->value, vars[j]->blind, vars[j]->getIndex());
 
   //have each PDF update their section in host_params
-  pdfPointer->copy (vars);
+  pdfPointer->copy (stream, vars);
 
   //run the fit
-  fun = pdfPointer->calculateNLL(); 
+  fun = pdfPointer->calculateNLL(stream); 
   host_callnumber++; 
 
 #ifdef PRINTCALLS

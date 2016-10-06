@@ -5,7 +5,7 @@
 extern PdfBase* pdfPointer; 
 extern int numPars; 
 
-void FitFun(int &npar, double *gin, double &fun, double *fp, int iflag); 
+void FitFun(int &stream, int &npar, double *gin, double &fun, double *fp, int iflag); 
 
 class FitManager { 
 public:

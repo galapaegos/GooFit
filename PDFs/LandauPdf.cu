@@ -24,7 +24,7 @@ MEM_CONSTANT fptype q6[5] = {1.0         , 651.4101098,  56974.73333,    165917.
 MEM_CONSTANT fptype a1[3] = {0.04166666667,-0.01996527778, 0.02709538966};
 MEM_CONSTANT fptype a2[2] = {-1.845568670,-4.284640743};
 
-EXEC_TARGET fptype device_Landau (fptype* evt, fptype* p, unsigned int* paramIdx)
+EXEC_TARGET fptype device_Landau (const fptype* __restrict evt, fptype* p, unsigned int* paramIdx)
 {
   //int numParams = cudaArray[*paramIdx];
   fptype mpv   = cudaArray[*paramIdx + 1];
