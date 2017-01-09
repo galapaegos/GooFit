@@ -24,7 +24,7 @@ EXEC_TARGET bool inDalitz (const fptype &m12,
                            const fptype &dm1,
                            const fptype &dm2,
                            const fptype &dm3); 
-EXEC_TARGET devcomplex<fptype> getResonanceAmplitude (fptype m12, fptype m13, fptype m23, unsigned int functionIdx, unsigned int pIndex); 
+EXEC_TARGET devcomplex<fptype> getResonanceAmplitude (const fptype &m12, const fptype &m13, const fptype &m23, const unsigned int &functionIdx, const unsigned int &pIndex); 
 EXEC_TARGET void get4Vecs (fptype* Vecs, const unsigned int& constants, const fptype& m12, const fptype& m34, const fptype& cos12, const fptype& cos34, const fptype& phi);
 EXEC_TARGET fptype getmass(const unsigned int& pair, fptype& d1, fptype& d2, const fptype* vecs, const fptype& m1, const fptype& m2, const fptype& m3, const fptype& m4);
 

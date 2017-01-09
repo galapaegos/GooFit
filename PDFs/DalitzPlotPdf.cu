@@ -68,7 +68,7 @@ EXEC_TARGET fptype device_DalitzPlot (fptype* evt, fptype* p, unsigned int* indi
   unsigned int numResonances = RO_CACHE(indices[2]); 
   unsigned int cacheToUse    = RO_CACHE(indices[3]); 
 
-  int enr = evtNum*numResonances;
+  //int enr = evtNum*numResonances;
   for (int i = 0; i < numResonances; ++i)
   {
     int paramIndex  = parIndexFromResIndex_DP(i);
@@ -204,7 +204,7 @@ __host__ void DalitzPlotPdf::setDataSize (unsigned int dataSize, unsigned int ev
     cachedWaves[i] = new DEVICE_VECTOR<devcomplex<fptype> >(numEntries*decayInfo->resonances.size());
 #endif
     void* dummy = thrust::raw_pointer_cast(cachedWaves[i]->data()); 
-    MEMCPY_TO_SYMBOL(cResonances[i], &dummy, sizeof(devcomplex<fptype>*), cacheToUse*sizeof(devcomplex<fptype>*), cudaMemcpyHostToDevice); 
+    MEMCPY_TO_SYMBOL(cResonances, &dummy, sizeof(devcomplex<fptype>*), i*sizeof(devcomplex<fptype>*), cudaMemcpyHostToDevice); 
   }
   setForceIntegrals(); 
 }
@@ -265,7 +265,7 @@ __host__ fptype DalitzPlotPdf::normalise () const {
         thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(eventIndex, dataArray, eventSize)),
   			thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, eventSize)),
 			strided_range<DEVICE_VECTOR<devcomplex<fptype> >::iterator>(
-				cachedWaves[i]->begin() + i, 
+				cachedWaves[i]->begin(), 
 				cachedWaves[i]->end(), 
 				1).begin(), 
 			*(calculators[i]));

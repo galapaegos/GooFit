@@ -394,7 +394,7 @@ void runToyFit (std::string toyFileName) {
   
   gettimeofday(&startTime, NULL);
   startCPU = times(&startProc);
-  datapdf.setMaxCalls (10);
+  //datapdf.setMaxCalls (10);
   datapdf.fit(); 
   stopCPU = times(&stopProc);
   gettimeofday(&stopTime, NULL);

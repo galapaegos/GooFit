@@ -2,6 +2,9 @@
 
 .SUFFIXES: 
 
+TARGET_MPI=1
+#TARGET_OMP=1
+
 ifeq ($(TARGET_OMP),)
 CXX=nvcc
 LD=g++
@@ -22,7 +25,7 @@ endif
 OVERRIDE_GROUPSIZE=128
 OVERRIDE_GRAINSIZE=7
 
-CXXFLAGS += -std=c++11 -O3
+CXXFLAGS += -std=c++11 -g
 
 UNAME=$(shell uname)
 ifeq ($(UNAME), Darwin)

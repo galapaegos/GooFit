@@ -75,7 +75,7 @@ EXEC_TARGET fptype spinFactor (unsigned int spin, fptype motherMass, fptype daug
   fptype sFactor = -1; 
   sFactor *= ((_mBC - _mAC) + (massFactor*(motherMass2 - _mC2)*(_mA2 - _mB2)));
 
-  fptype mc2 = motherMass2 - _mC2;
+  //fptype mc2 = motherMass2 - _mC2;
   fptype ab = _mA2 - _mB2;
   //if (2 == spin) {
   //  sFactor *= sFactor; 
@@ -144,7 +144,7 @@ EXEC_TARGET devcomplex<fptype> plainBW (fptype m12, fptype m13, fptype m23, unsi
   return ret; 
 }
 
-EXEC_TARGET devcomplex<fptype> gaussian (const fptype &m12, const fptype &m13, const fptype &m23, const unsigned int* indices) {
+EXEC_TARGET devcomplex<fptype> gaussian (fptype m12, fptype m13, fptype m23, unsigned int* indices) {
   // indices[1] is unused constant index, for consistency with other function types. 
   fptype resmass                = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
   fptype reswidth               = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
@@ -324,7 +324,7 @@ EXEC_TARGET devcomplex<fptype> lass (fptype m12, fptype m13, fptype m23, unsigne
 }
 
 
-EXEC_TARGET devcomplex<fptype> nonres (const fptype &m12, const fptype &m13, const fptype &m23, const unsigned int* indices) {
+EXEC_TARGET devcomplex<fptype> nonres (fptype m12, fptype m13, fptype m23, unsigned int* indices) {
   return devcomplex<fptype>(1, 0); 
 }
 
