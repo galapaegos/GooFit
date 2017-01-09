@@ -272,6 +272,7 @@ void CudaMinimise (int dev, int fitType) {
   FitManager mcpdf(&resolution); 
 
 <<<<<<< HEAD:examples/zachFit/zachFit.cu
+<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#ifdef OMP_ON
 //  #pragma omp master
 //  {
@@ -279,6 +280,8 @@ void CudaMinimise (int dev, int fitType) {
 //  }
 //#else
 =======
+=======
+>>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
 //#ifdef 0
 #if 0
   #pragma omp master
@@ -296,10 +299,13 @@ void CudaMinimise (int dev, int fitType) {
   mcpdf.getMinuitValues(); 
 
 <<<<<<< HEAD:examples/zachFit/zachFit.cu
+<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#ifdef OMP_ON
 //#pragma omp barrier
 //#endif
 =======
+=======
+>>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
 //#ifdef 0
 #if 0
 #pragma omp barrier
@@ -380,6 +386,7 @@ void CudaMinimise (int dev, int fitType) {
 
 //#ifdef OMP_ON
 <<<<<<< HEAD:examples/zachFit/zachFit.cu
+<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#pragma omp master
 //{
 //#endif
@@ -389,6 +396,8 @@ void CudaMinimise (int dev, int fitType) {
 //#pragma omp barrier
 //#endif
 =======
+=======
+>>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
 #if 0
 #pragma omp master
 {
@@ -411,9 +420,12 @@ void CudaMinimise (int dev, int fitType) {
   
 //#ifdef OMP_ON
 <<<<<<< HEAD:examples/zachFit/zachFit.cu
+<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //  std::cout << tid << ": Starting fit\n"; 
 //#else
 =======
+=======
+>>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
 #if 0
   std::cout << tid << ": Starting fit\n"; 
 #else
@@ -430,9 +442,12 @@ void CudaMinimise (int dev, int fitType) {
 
 //#ifdef OMP_ON
 <<<<<<< HEAD:examples/zachFit/zachFit.cu
+<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#pragma omp barrier
 //#endif
 =======
+=======
+>>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
 #if 0
 #pragma omp barrier
 #endif
@@ -475,6 +490,7 @@ void CudaMinimise (int dev, int fitType) {
   
 //#ifdef OMP_ON
 <<<<<<< HEAD:examples/zachFit/zachFit.cu
+<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#pragma omp master
 //{
 //#endif
@@ -483,6 +499,8 @@ void CudaMinimise (int dev, int fitType) {
 //}
 //#endif
 =======
+=======
+>>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
 #if 0
 #pragma omp master
 {
@@ -506,10 +524,13 @@ void CudaMinimise (int dev, int fitType) {
   
 //#ifdef OMP_ON
 <<<<<<< HEAD:examples/zachFit/zachFit.cu
+<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#pragma omp master
 //{
 //#endif
 =======
+=======
+>>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
 #if 0
 #pragma omp master
 {
@@ -543,11 +564,14 @@ void CudaMinimise (int dev, int fitType) {
   */
 //#ifdef OMP_ON
 <<<<<<< HEAD:examples/zachFit/zachFit.cu
+<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //  }  // end master section
 //  #pragma omp barrier
 //}  // end parallel
 //#endif
 =======
+=======
+>>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
 #if 0
   }  // end master section
   #pragma omp barrier

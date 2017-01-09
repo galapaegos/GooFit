@@ -523,6 +523,7 @@ __host__ void TddpPdf::setDataSize (unsigned int dataSize, unsigned int evtSize)
     MEMCPY_TO_SYMBOL(cWaves, &dummy, sizeof(WaveHolder_s*), i*sizeof(WaveHolder_s*), cudaMemcpyHostToDevice); 
   }
   setForceIntegrals(); 
+#endif
 }
 
 __host__ fptype TddpPdf::normalise () const {
@@ -575,10 +576,10 @@ __host__ fptype TddpPdf::normalise () const {
 #ifdef TARGET_MPI
       thrust::transform (thrust::make_zip_iterator(thrust::make_tuple(eventIndex, dataArray, eventSize)),
 		thrust::make_zip_iterator(thrust::make_tuple(eventIndex + m_iEventsPerTask, arrayAddress, eventSize)),
-		strided_range<thrust::device_vector<WaveHolder>::iterator>(
-			cachedWaves->begin() + i, 
-			cachedWaves->end(), 
-			decayInfo->resonances.size()).begin(), 
+		strided_range<thrust::device_vector<WaveHolder_s>::iterator>(
+			cachedWaves[i]->begin(), 
+			cachedWaves[i]->end(), 
+			1).begin(), 
 		*(calculators[i]));
       
 #else
