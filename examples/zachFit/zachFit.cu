@@ -164,12 +164,8 @@ void CudaMinimise (int dev, int fitType) {
        printf("Compute capability of device %d is less than 2.0, terminating ...\n", i);
        exit(EXIT_FAILURE);
     }
-    cudaSetDevice(tid);
+    cudaSetDevice(i);
   }
-#else
-  printf ("set device\n"); 
-  //cudaSetDevice(dev);
-#endif
 
 //#ifdef 0
 #if 0
@@ -271,25 +267,12 @@ void CudaMinimise (int dev, int fitType) {
   resolution.setData(data);
   FitManager mcpdf(&resolution); 
 
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#ifdef OMP_ON
 //  #pragma omp master
 //  {
 //  std::cout <<  << "Done with data, starting minimisation" << std::endl; 
 //  }
 //#else
-=======
-=======
->>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
-//#ifdef 0
-#if 0
-  #pragma omp master
-  {
-  std::cout << tid << "Done with data, starting minimisation" << std::endl; 
-  }
-#else
->>>>>>> Makefile.config contains global settings for the library and for the examples.  This way, we only need to toggle in one location.:examples/zachFit/ZachFit.cu
   std::cout << "Done with data, starting minimisation" << std::endl; 
 //#endif
   // Minimize
@@ -298,19 +281,9 @@ void CudaMinimise (int dev, int fitType) {
 
   mcpdf.getMinuitValues(); 
 
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#ifdef OMP_ON
 //#pragma omp barrier
 //#endif
-=======
-=======
->>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
-//#ifdef 0
-#if 0
-#pragma omp barrier
-#endif
->>>>>>> Makefile.config contains global settings for the library and for the examples.  This way, we only need to toggle in one location.:examples/zachFit/ZachFit.cu
 
   mean1.fixed = true;
   mean2.fixed = true;
@@ -384,9 +357,6 @@ void CudaMinimise (int dev, int fitType) {
   comps.push_back(&bkg);
   comps.push_back(&signal); 
 
-//#ifdef OMP_ON
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#pragma omp master
 //{
 //#endif
@@ -395,20 +365,6 @@ void CudaMinimise (int dev, int fitType) {
 //}
 //#pragma omp barrier
 //#endif
-=======
-=======
->>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
-#if 0
-#pragma omp master
-{
-#endif
-  getData(); 
-//#ifdef OMP_ON
-#if 0
-}
-#pragma omp barrier
-#endif
->>>>>>> Makefile.config contains global settings for the library and for the examples.  This way, we only need to toggle in one location.:examples/zachFit/ZachFit.cu
 
   AddPdf total("total", weights, comps);
   if (0 == fitType) total.setData(data);
@@ -419,17 +375,8 @@ void CudaMinimise (int dev, int fitType) {
   FitManager datapdf(&total); 
   
 //#ifdef OMP_ON
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //  std::cout << tid << ": Starting fit\n"; 
 //#else
-=======
-=======
->>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
-#if 0
-  std::cout << tid << ": Starting fit\n"; 
-#else
->>>>>>> Makefile.config contains global settings for the library and for the examples.  This way, we only need to toggle in one location.:examples/zachFit/ZachFit.cu
   std::cout << "Starting fit\n"; 
 //#endif
   gettimeofday(&startTime, NULL);
@@ -441,17 +388,8 @@ void CudaMinimise (int dev, int fitType) {
   gettimeofday(&stopTime, NULL);
 
 //#ifdef OMP_ON
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#pragma omp barrier
 //#endif
-=======
-=======
->>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
-#if 0
-#pragma omp barrier
-#endif
->>>>>>> Makefile.config contains global settings for the library and for the examples.  This way, we only need to toggle in one location.:examples/zachFit/ZachFit.cu
   //std::cout << "Minimum: " << *min2 << std::endl;
 /*
   double dat_int = 0; 
@@ -489,8 +427,6 @@ void CudaMinimise (int dev, int fitType) {
 */
   
 //#ifdef OMP_ON
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#pragma omp master
 //{
 //#endif
@@ -498,19 +434,6 @@ void CudaMinimise (int dev, int fitType) {
 //#ifdef OMP_ON
 //}
 //#endif
-=======
-=======
->>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
-#if 0
-#pragma omp master
-{
-#endif
-  dm->value = 0.1568; 
-//#ifdef OMP_ON
-#if 0
-}
-#endif
->>>>>>> Makefile.config contains global settings for the library and for the examples.  This way, we only need to toggle in one location.:examples/zachFit/ZachFit.cu
 /*
   std::cout << "PDF: " 
 	    << (dat_int/totalIntegral) * total.getValue() << " " 
@@ -523,19 +446,9 @@ void CudaMinimise (int dev, int fitType) {
 */
   
 //#ifdef OMP_ON
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //#pragma omp master
 //{
 //#endif
-=======
-=======
->>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
-#if 0
-#pragma omp master
-{
-#endif
->>>>>>> Makefile.config contains global settings for the library and for the examples.  This way, we only need to toggle in one location.:examples/zachFit/ZachFit.cu
   /*
   data_hist->SetStats(false); 
   data_hist->SetMarkerStyle(8);
@@ -563,22 +476,10 @@ void CudaMinimise (int dev, int fitType) {
   foo->SaveAs("zach_CUDA_fit.png"); 
   */
 //#ifdef OMP_ON
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
-<<<<<<< HEAD:examples/zachFit/zachFit.cu
 //  }  // end master section
 //  #pragma omp barrier
 //}  // end parallel
 //#endif
-=======
-=======
->>>>>>> 453b7f1535fb36c4ba179866de77af4869bc5459:examples/zachFit/ZachFit.cu
-#if 0
-  }  // end master section
-  #pragma omp barrier
-}  // end parallel
-#endif
->>>>>>> Makefile.config contains global settings for the library and for the examples.  This way, we only need to toggle in one location.:examples/zachFit/ZachFit.cu
-
 }
 
 timeval fullStart, fullStop, fullTime;

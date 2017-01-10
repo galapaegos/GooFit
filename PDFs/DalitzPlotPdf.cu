@@ -199,9 +199,9 @@ __host__ void DalitzPlotPdf::setDataSize (unsigned int dataSize, unsigned int ev
   for (int i = 0; i < 16; i++)
   {
 #ifdef TARGET_MPI
-    cachedWaves[i] = new DEVICE_VECTOR<devcomplex<fptype> >(m_iEventsPerTask*decayInfo->resonances.size());
+    cachedWaves[i] = new DEVICE_VECTOR<devcomplex<fptype> >(m_iEventsPerTask);
 #else
-    cachedWaves[i] = new DEVICE_VECTOR<devcomplex<fptype> >(numEntries*decayInfo->resonances.size());
+    cachedWaves[i] = new DEVICE_VECTOR<devcomplex<fptype> >(numEntries);
 #endif
     void* dummy = thrust::raw_pointer_cast(cachedWaves[i]->data()); 
     MEMCPY_TO_SYMBOL(cResonances, &dummy, sizeof(devcomplex<fptype>*), i*sizeof(devcomplex<fptype>*), cudaMemcpyHostToDevice); 
