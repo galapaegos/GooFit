@@ -523,7 +523,6 @@ __host__ void TddpPdf::setDataSize (unsigned int dataSize, unsigned int evtSize)
     MEMCPY_TO_SYMBOL(cWaves, &dummy, sizeof(WaveHolder_s*), i*sizeof(WaveHolder_s*), cudaMemcpyHostToDevice); 
   }
   setForceIntegrals(); 
-#endif
 }
 
 __host__ fptype TddpPdf::normalise () const {

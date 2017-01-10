@@ -3,7 +3,7 @@
 
 #include "GooPdf.hh" 
 #include "devcomplex.hh" 
-typedef devcomplex<fptype> (*resonance_function_ptr) (const fptype &, const fptype &, const fptype &, const unsigned int*); 
+typedef devcomplex<fptype> (*resonance_function_ptr) (fptype, fptype, fptype, unsigned int*); 
 
 EXEC_TARGET fptype twoBodyCMmom (const double &rMassSq, const fptype &d1m, const fptype &d2m);
 
