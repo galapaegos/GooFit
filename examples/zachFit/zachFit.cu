@@ -131,47 +131,6 @@ void getData () {
 }
 
 void CudaMinimise (int dev, int fitType) {
-//#ifdef CUDAPRINT
-//  cudaPrintfInit(10000000); 
-//#endif
-//#ifdef OMP_ON 
-  int deviceCount;  
-  int threadCount;  
-//#pragma omp parallel
-//  {
-//  threadCount = omp_get_num_threads();
-//  }
-
-#if THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA
-  cudaGetDeviceCount(&deviceCount);   
-  //if (threadCount > deviceCount) {
-    //omp_set_num_threads(deviceCount); 
-  //}
-#endif
-//#endif
-
-//#pragma omp parallel
-  for (int i = 0; i < deviceCount; i++)
-  {
-//#if THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA
-    cudaDeviceProp deviceProp;
-//    tid = omp_get_thread_num();
-//#if THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA
-    cudaGetDeviceProperties(&deviceProp, i);
-    printf("Device %d has compute capability %d.%d.\n", i, deviceProp.major, deviceProp.minor);
-    if (deviceProp.major < 2)
-    {
-       printf("Compute capability of device %d is less than 2.0, terminating ...\n", i);
-       exit(EXIT_FAILURE);
-    }
-    cudaSetDevice(i);
-  }
-
-//#ifdef 0
-#if 0
-#pragma omp master
-{
-#endif
   dm = new Variable("dm", 0.1395, 0.1665); 
   dm->numbins = 2700; 
   //dm->numbins = 540; 
@@ -185,6 +144,10 @@ void CudaMinimise (int dev, int fitType) {
   MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myId);
 
+#ifndef TARGET_OMP
+  int deviceCount;
+  cudaGetDeviceCount (&deviceCount);
+
   //No way to figure out how many processes per node, so we read the environment variable
   int nodes = atoi (getenv ("PBS_NUM_NODES"));
   if (nodes == 0)
@@ -192,7 +155,6 @@ void CudaMinimise (int dev, int fitType) {
   int procsPerNode = numProcs/nodes;
   int localRank = myId % procsPerNode;
 
-  /*
   if (deviceCount == 1 && localRank > 1)
   {
     printf ("Multi-process to one GPU!\n");
@@ -216,7 +178,7 @@ void CudaMinimise (int dev, int fitType) {
     printf ("Multi-GPU's, using one process! %i, [%i,%i]\n", deviceCount, localRank, procsPerNode);
     cudaSetDevice (0);
   }
-  */ 
+#endif
 #endif
 
   Variable mean1("kpi_mc_mean1", 0.145402, 0.00001, 0.143, 0.148);

@@ -4262,7 +4262,7 @@ int main (int argc, char** argv) {
   MPI_CHECK(MPI_Comm_size(MPI_COMM_WORLD, &numProcs));
   MPI_CHECK(MPI_Comm_rank(MPI_COMM_WORLD, &myId));
   
-  //we have MPI, so lets do something slightly different here:
+#ifndef TARGET_OMP
   int deviceCount;
   cudaGetDeviceCount(&deviceCount);
 
@@ -4296,6 +4296,7 @@ int main (int argc, char** argv) {
     printf ("Multi-GPU's, using one process! %i, [%i,%i]\n", deviceCount, localRank, procsPerNode);
     cudaSetDevice (0);
   }
+#endif
 #endif
 
   gStyle->SetCanvasBorderMode(0);

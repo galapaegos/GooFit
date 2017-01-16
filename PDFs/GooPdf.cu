@@ -212,11 +212,29 @@ __host__ double GooPdf::sumOfNll (int numVars) const {
   thrust::constant_iterator<int> eventSize(numVars); 
   thrust::constant_iterator<fptype*> arrayAddress(dev_event_array); 
   double dummy = 0;
+ 
+  thrust::counting_iterator<int> eventIndex(0); 
+#ifdef TARGET_OMP
+#ifdef TARGET_MPI
+  double localResult = thrust::transform_reduce(
+      thrust::make_zip_iterator(thrust::make_tuple(eventIndex, arrayAddress, eventSize)),
+      thrust::make_zip_iterator(thrust::make_tuple(eventIndex + m_iEventsPerTask, arrayAddress, eventSize)),
+      *logger, dummy, cudaPlus);
+
+  double globalResult;
+  MPI_Allreduce(&localResult, &globalResult, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  return globalResult;
+#else
+  return thrust::transform_reduce(
+	thrust::make_zip_iterator(thrust::make_tuple(eventIndex, arrayAddress, eventSize)),
+	thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, eventSize)),
+	*logger, dummy, cudaPlus);   
+#endif
+#else
   
   goofit_policy my_policy;
 
-  //if (host_callnumber >= 2) abortWithCudaPrintFlush(__FILE__, __LINE__, getName() + " debug abort", this); 
-  thrust::counting_iterator<int> eventIndex(0); 
 #ifdef TARGET_MPI
   double localResult = thrust::transform_reduce(my_policy,
       thrust::make_zip_iterator(thrust::make_tuple(eventIndex, arrayAddress, eventSize)),
@@ -232,6 +250,7 @@ __host__ double GooPdf::sumOfNll (int numVars) const {
 	thrust::make_zip_iterator(thrust::make_tuple(eventIndex, arrayAddress, eventSize)),
 	thrust::make_zip_iterator(thrust::make_tuple(eventIndex + numEntries, arrayAddress, eventSize)),
 	*logger, dummy, cudaPlus);   
+#endif
 #endif
 }
 
@@ -416,18 +435,27 @@ __host__ fptype GooPdf::normalise () const {
     //if (cpuDebug & 1) std::cout << "Total bins " << totalBins << " due to " << (*v)->name << " " << integrationBins << " " << (*v)->numbins << std::endl; 
   }
   ret /= totalBins; 
-  
-  goofit_policy my_policy;
-
+ 
   fptype dummy = 0; 
   static thrust::plus<fptype> cudaPlus;
   thrust::constant_iterator<fptype*> arrayAddress(normRanges); 
   thrust::constant_iterator<int> eventSize(observables.size());
   thrust::counting_iterator<int> binIndex(0); 
+
+#ifndef TARGET_OMP 
+  goofit_policy my_policy;
+
   fptype sum = thrust::transform_reduce(my_policy,
 				    thrust::make_zip_iterator(thrust::make_tuple(binIndex, eventSize, arrayAddress)),
 					thrust::make_zip_iterator(thrust::make_tuple(binIndex + totalBins, eventSize, arrayAddress)),
 					*logger, dummy, cudaPlus); 
+#else
+  fptype sum = thrust::transform_reduce(
+				    thrust::make_zip_iterator(thrust::make_tuple(binIndex, eventSize, arrayAddress)),
+					thrust::make_zip_iterator(thrust::make_tuple(binIndex + totalBins, eventSize, arrayAddress)),
+					*logger, dummy, cudaPlus); 
+#endif
+  
   if (std::isnan(sum)) {
     abortWithCudaPrintFlush(__FILE__, __LINE__, getName() + " NaN in normalisation", this); 
   }

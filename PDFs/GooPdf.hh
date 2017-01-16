@@ -1,6 +1,10 @@
 #ifndef THRUST_PDF_FUNCTOR_HH
 #define THRUST_PDF_FUNCTOR_HH
+//do not include if we are using OMP
+#ifndef TARGET_OMP
 #include "ThrustOverride.h"
+#endif
+
 #ifdef TARGET_MPI
 #include <mpi.h>
 #endif

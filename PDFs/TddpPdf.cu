@@ -1,5 +1,7 @@
 #include "TddpPdf.hh"
 #include <complex>
+#include <thrust/system_error.h>
+
 using std::complex; 
 
 const int resonanceOffset = 8; // Offset of the first resonance into the parameter index array 
@@ -512,6 +514,32 @@ __host__ void TddpPdf::setDataSize (unsigned int dataSize, unsigned int evtSize)
   }
 
   numEntries = dataSize; 
+
+#ifdef TARGET_MPI
+  //This function can't rely on m_iEventsPerTask being set properly, we need to determine it right now..
+  int myId, numProcs;
+  MPI_Comm_size (MPI_COMM_WORLD, &numProcs);
+  MPI_Comm_rank (MPI_COMM_WORLD, &myId);
+
+  int perTask = numEntries/numProcs;
+
+  int *counts = new int[numProcs];
+  int *displacements = new int[numProcs];
+
+  for (int i = 0; i < numProcs - 1; i++)
+    counts[i] = perTask;
+  counts[numProcs - 1] = numEntries - perTask*(numProcs - 1);
+
+  displacements[0] = 0;
+  for (int i = 1; i < numProcs; i++)
+    displacements[i] = displacements[i - 1] + counts[i - 1];
+
+  setNumPerTask (this, counts[myId]);
+
+  delete[] counts;
+  delete[] displacements;
+#endif
+
   for (int i = 0; i < 16; i++)
   {
 #ifdef TARGET_MPI
@@ -519,6 +547,7 @@ __host__ void TddpPdf::setDataSize (unsigned int dataSize, unsigned int evtSize)
 #else
     cachedWaves[i] = new thrust::device_vector<WaveHolder_s>(dataSize);
 #endif
+
     void* dummy = thrust::raw_pointer_cast(cachedWaves[i]->data()); 
     MEMCPY_TO_SYMBOL(cWaves, &dummy, sizeof(WaveHolder_s*), i*sizeof(WaveHolder_s*), cudaMemcpyHostToDevice); 
   }
